@@ -22,12 +22,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Métodos de pago
 CREATE TYPE payment_method AS ENUM (
     'Efectivo Físico',
-    'Dinero Digital',
-    'Transferencia',
-    'Tarjeta',
-    'Mercado Pago'
+    'Dinero Digital'
 );
-COMMENT ON TYPE payment_method IS 'Métodos de pago disponibles en el sistema';
+COMMENT ON TYPE payment_method IS 'Métodos de pago disponibles: Efectivo Físico (efectivo físico en mano) y Dinero Digital (transferencias, Mercado Pago, etc.)';
 
 -- Estados de pedidos
 CREATE TYPE order_status AS ENUM (
