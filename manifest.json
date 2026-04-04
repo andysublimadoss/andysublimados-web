@@ -1,0 +1,16 @@
+{
+  "name": "Andy Sublimados",
+  "short_name": "Andy",
+  "description": "Sistema de gestión para Andy Sublimados",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://ais-dev-gqvbpewqbib4uw5mbak63g-31633722930.us-east5.run.app/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
