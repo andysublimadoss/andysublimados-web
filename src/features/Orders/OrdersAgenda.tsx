@@ -7,7 +7,7 @@ import {
   Minus, LayoutList, CalendarDays, ChevronLeft, ChevronRight,
   AlertCircle, Edit2, DollarSign, Wallet, Filter, Check,
   CalendarRange, CreditCard, Truck, ArrowRight, CheckCircle2, Sparkles,
-  Columns, Instagram, Facebook, Phone, ArrowUpRight
+  Columns, Instagram, Facebook, Phone, ArrowUpRight, Zap
 } from 'lucide-react';
 import { Order, PaymentMethod, CashMovement, MovementType, Customer, Product, OrderProduct, OrderStatus } from '@/types';
 import { getStatusConfig } from '@/utils';
@@ -133,17 +133,6 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
 
   const handleQuickFilter = (type: DateFilterType) => {
     setDateFilter(type);
-    if (type === 'mes') {
-      setViewMode('calendar');
-    } else {
-      setViewMode('list');
-    }
-    if (type === 'personalizado') {
-      const start = prompt("Fecha inicio (AAAA-MM-DD):", new Date().toLocaleDateString('en-CA'));
-      const end = prompt("Fecha fin (AAAA-MM-DD):", new Date().toLocaleDateString('en-CA'));
-      if (start && end) setCustomRange({ start, end });
-      else setDateFilter('mes');
-    }
   };
 
   const filteredOrders = useMemo(() => {
@@ -151,16 +140,17 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
     // Normalizar hoy a las 00:00:00
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayStr = today.toLocaleDateString('en-CA');
-    
-    // Inicio de semana local (Domingo)
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    // Fin de semana local (Sábado)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+    // Próximos 7 días (desde hoy)
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + 7);
     endOfWeek.setHours(23, 59, 59, 999);
+
+    // Todo el mes actual (del día 1 al último día del mes)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
     const cleanFilter = filter.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -168,21 +158,21 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
       const name = (o.customerName || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const desc = (o.description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const whatsapp = (o.whatsapp || "").toLowerCase();
-      
+
       const matchesSearch = name.includes(cleanFilter) || desc.includes(cleanFilter) || whatsapp.includes(cleanFilter);
       const matchesStatus = statusFilter === 'todos' || o.status === statusFilter;
-      
-      let matchesDate = true;
-      if (dateFilter !== 'mes') {
-        const orderDate = new Date(o.deliveryDate + 'T12:00:00'); 
 
-        if (dateFilter === 'hoy') {
-          matchesDate = o.deliveryDate === todayStr;
-        } else if (dateFilter === 'semana') {
-          matchesDate = orderDate >= startOfWeek && orderDate <= endOfWeek;
-        } else if (dateFilter === 'personalizado') {
-          matchesDate = o.deliveryDate >= customRange.start && o.deliveryDate <= customRange.end;
-        }
+      let matchesDate = true;
+      const orderDate = new Date(o.deliveryDate + 'T12:00:00');
+
+      if (dateFilter === 'hoy') {
+        matchesDate = o.deliveryDate === todayStr;
+      } else if (dateFilter === 'semana') {
+        matchesDate = orderDate >= today && orderDate <= endOfWeek;
+      } else if (dateFilter === 'mes') {
+        matchesDate = orderDate >= startOfMonth && orderDate <= endOfMonth;
+      } else if (dateFilter === 'personalizado') {
+        matchesDate = o.deliveryDate >= customRange.start && o.deliveryDate <= customRange.end;
       }
 
       return matchesSearch && matchesStatus && matchesDate;
@@ -242,10 +232,31 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
                 className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all relative ${dateFilter === df ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 {dateFilter === df && <motion.div layoutId="date-filter" className="absolute inset-0 bg-indigo-50 rounded-lg -z-10 border border-indigo-100" />}
-                {df === 'hoy' ? 'Día' : df === 'semana' ? 'Semana' : df === 'mes' ? 'Agenda' : 'Rango'}
+                {df === 'hoy' ? 'Día' : df === 'semana' ? 'Semana' : df === 'mes' ? 'Mes' : 'Rango'}
               </button>
             ))}
           </div>
+
+          {/* Inputs de rango personalizado */}
+          {dateFilter === 'personalizado' && (
+            <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-3 shadow-sm">
+              <span className="text-xs font-semibold text-slate-600">Desde:</span>
+              <input
+                type="date"
+                value={customRange.start}
+                onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 font-medium outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <span className="text-slate-400 text-xs font-bold">—</span>
+              <span className="text-xs font-semibold text-slate-600">Hasta:</span>
+              <input
+                type="date"
+                value={customRange.end}
+                onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 font-medium outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          )}
 
           {/* Filtros de estado */}
           <div className="bg-white p-1 rounded-xl border border-slate-200 flex shadow-sm">
@@ -520,21 +531,95 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 bg-white p-6 rounded-lg border border-neutral-200 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-                    <LayoutList size={20} />
+              {/* Funnel de Pedidos - Compacto */}
+              <div className="bg-white p-4 rounded-lg border border-neutral-200 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded">
+                    <LayoutList size={14} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-neutral-900">
-                      {dateFilter === 'hoy' ? 'Trabajos de Hoy' :
-                       dateFilter === 'semana' ? 'Trabajos de la Semana' :
-                       dateFilter === 'mes' ? 'Agenda Completa' : 'Rango Personalizado'}
-                    </h3>
-                    <p className="text-sm text-neutral-500 mt-0.5">
+                    <h3 className="text-sm font-bold text-neutral-900">Pipeline</h3>
+                    <p className="text-[9px] font-medium text-neutral-500">
                       {filteredOrders.length} {filteredOrders.length === 1 ? 'trabajo' : 'trabajos'}
                     </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {/* Pendientes */}
+                  <div className="bg-amber-50 border border-amber-200 p-2 rounded hover:shadow transition-all cursor-pointer">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="w-6 h-6 rounded bg-amber-500 text-white flex items-center justify-center">
+                        <Clock size={11} />
+                      </div>
+                      <span className="text-[10px] font-semibold text-amber-900">Pendientes</span>
+                    </div>
+                    <div className="text-lg font-bold text-amber-600 mb-0.5">
+                      {orders.filter(o => o.status === 'pedido' && !o.isDelivered).length}
+                    </div>
+                    <div className="h-1 bg-amber-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${orders.length > 0 ? (orders.filter(o => o.status === 'pedido' && !o.isDelivered).length / orders.length) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* En Proceso */}
+                  <div className="bg-indigo-50 border border-indigo-200 p-2 rounded hover:shadow transition-all cursor-pointer">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="w-6 h-6 rounded bg-indigo-500 text-white flex items-center justify-center">
+                        <Zap size={11} />
+                      </div>
+                      <span className="text-[10px] font-semibold text-indigo-900">Proceso</span>
+                    </div>
+                    <div className="text-lg font-bold text-indigo-600 mb-0.5">
+                      {orders.filter(o => o.status === 'proceso' && !o.isDelivered).length}
+                    </div>
+                    <div className="h-1 bg-indigo-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                        style={{ width: `${orders.length > 0 ? (orders.filter(o => o.status === 'proceso' && !o.isDelivered).length / orders.length) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Terminados */}
+                  <div className="bg-emerald-50 border border-emerald-200 p-2 rounded hover:shadow transition-all cursor-pointer">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="w-6 h-6 rounded bg-emerald-500 text-white flex items-center justify-center">
+                        <CheckCircle size={11} />
+                      </div>
+                      <span className="text-[10px] font-semibold text-emerald-900">Terminados</span>
+                    </div>
+                    <div className="text-lg font-bold text-emerald-600 mb-0.5">
+                      {orders.filter(o => o.status === 'terminado' && !o.isDelivered).length}
+                    </div>
+                    <div className="h-1 bg-emerald-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${orders.length > 0 ? (orders.filter(o => o.status === 'terminado' && !o.isDelivered).length / orders.length) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Entregados */}
+                  <div className="bg-neutral-100 border border-neutral-300 p-2 rounded hover:shadow transition-all cursor-pointer">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="w-6 h-6 rounded bg-neutral-500 text-white flex items-center justify-center">
+                        <Package size={11} />
+                      </div>
+                      <span className="text-[10px] font-semibold text-neutral-900">Entregados</span>
+                    </div>
+                    <div className="text-lg font-bold text-neutral-600 mb-0.5">
+                      {orders.filter(o => o.isDelivered).length}
+                    </div>
+                    <div className="h-1 bg-neutral-300 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-neutral-500 rounded-full transition-all duration-500"
+                        style={{ width: `${orders.length > 0 ? (orders.filter(o => o.isDelivered).length / orders.length) * 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

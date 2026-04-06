@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, Plus, Minus, Package } from 'lucide-react';
 import { Product, OrderProduct } from '@/types';
@@ -20,6 +20,13 @@ export const ProductSelectorModal: React.FC<ProductSelectorModalProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState<OrderProduct[]>(initialSelected);
+
+  // Sync internal state with prop changes when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelected(initialSelected);
+    }
+  }, [isOpen, initialSelected]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p =>

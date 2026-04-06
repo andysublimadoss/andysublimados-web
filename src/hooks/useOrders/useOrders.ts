@@ -50,30 +50,29 @@ export function useOrders({
     contactMethod: undefined as 'WhatsApp' | 'Instagram' | 'Facebook' | 'Presencial' | undefined
   });
 
-  // Autosave for non-financial fields
+  // Autosave for non-financial and non-product fields
+  // NOTE: linkedProducts are NOT autosaved - they must be saved via handleSave to manage stock correctly
   useDebounce(() => {
     if (isModalOpen && editingId && formData.customerName.trim() && formData.description.trim()) {
-      // Actualizar en Supabase
+      // Actualizar en Supabase (SIN linkedProducts)
       ordersService.update(editingId, {
         description: formData.description,
         customerName: formData.customerName,
         whatsapp: formData.whatsapp,
-        deliveryDate: formData.deliveryDate,
-        linkedProducts: selectedProducts
+        deliveryDate: formData.deliveryDate
       }).catch(err => {
         console.error('Error updating order:', err);
       });
-      // Actualizar estado local
+      // Actualizar estado local (SIN linkedProducts)
       setOrders(prev => prev.map(o => o.id === editingId ? {
         ...o,
         description: formData.description,
         customerName: formData.customerName,
         whatsapp: formData.whatsapp,
-        deliveryDate: formData.deliveryDate,
-        linkedProducts: selectedProducts
+        deliveryDate: formData.deliveryDate
       } : o));
     }
-  }, [formData.description, formData.customerName, formData.whatsapp, formData.deliveryDate, selectedProducts, editingId, isModalOpen], 500);
+  }, [formData.description, formData.customerName, formData.whatsapp, formData.deliveryDate, editingId, isModalOpen], 500);
 
   const updateAmounts = (total: number, deposit: number) => {
     const remaining = Math.max(0, total - deposit);

@@ -441,224 +441,267 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, movements, products, supp
           </div>
         </motion.div>
 
-        {/* Quick Actions (Medium) */}
+        {/* Próxima Entrega Card - Compact */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
-          className="md:col-span-4 lg:col-span-3 bg-white p-6 rounded-4xl border border-slate-100 shadow-sm flex flex-col gap-4"
+          onClick={() => onNavigate('agenda')}
+          className="md:col-span-12 lg:col-span-4 bg-zinc-900 p-6 rounded-lg text-white shadow-sm border-2 border-neutral-700 relative overflow-hidden group cursor-pointer flex flex-col"
         >
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Acciones Rápidas</h4>
-            <Zap size={16} className="text-amber-500" />
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            <ActionItem icon={<Plus size={18}/>} label="Nuevo Pedido" color="bg-indigo-600 text-white" onClick={() => onNavigate('agenda')} />
-            <ActionItem icon={<Users size={18}/>} label="Clientes" color="bg-slate-50 text-slate-700" onClick={() => onNavigate('clientes')} />
-            <ActionItem icon={<HandCoins size={18}/>} label="Registrar Pago" color="bg-slate-50 text-slate-700" onClick={() => onNavigate('caja')} />
-            <ActionItem icon={<Star size={18}/>} label="Andy IA" color="bg-amber-50 text-amber-700" onClick={() => onNavigate('asistente')} />
-          </div>
-        </motion.div>
+          {/* Gradient background effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 group-hover:opacity-80 blur transition-opacity duration-500" />
 
-        {/* Operational Status - Moved Below */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-          className="md:col-span-8 lg:col-span-9 flex flex-col gap-4 md:gap-6"
-        >
-          {/* Next Delivery Card */}
-          <div
-            onClick={() => onNavigate('agenda')}
-            className="bg-linear-to-br from-indigo-600 to-violet-700 p-8 rounded-4xl text-white shadow-xl shadow-indigo-200/20 relative overflow-hidden group cursor-pointer"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-all" />
-            <div className="relative z-10 flex justify-between items-start mb-8">
-              <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                <Clock size={24} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 px-3 py-1 rounded-full backdrop-blur-md">Próxima Entrega</span>
+          <div className="relative z-10 flex items-center justify-between mb-4">
+            <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-md">
+              <Clock size={20} />
             </div>
-            {nextDelivery ? (
-              <div className="relative z-10">
-                <h4 className="text-3xl font-black tracking-tight mb-2">{nextDelivery.customerName}</h4>
-                <div className="flex items-center gap-2 text-indigo-100 font-bold text-sm mb-6">
+            <span className="text-[9px] font-semibold uppercase tracking-wide bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-md">Próxima Entrega</span>
+          </div>
+
+          {nextDelivery ? (
+            <div className="relative z-10 flex-1 flex flex-col">
+              <h4 className="text-xl font-bold mb-3">{nextDelivery.customerName}</h4>
+              <div className="flex flex-col gap-2 text-white/90 text-sm mb-4 flex-1">
+                <div className="flex items-center gap-2">
                   <Calendar size={14} />
-                  <span>{new Date(nextDelivery.deliveryDate).toLocaleDateString('es-AR')}</span>
-                  <span className="opacity-30">|</span>
-                  <span>{nextDelivery.description}</span>
+                  <span className="font-medium">{new Date(nextDelivery.deliveryDate).toLocaleDateString('es-AR')}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white text-indigo-600 w-fit px-5 py-2.5 rounded-xl shadow-lg group-hover:translate-x-2 transition-transform">
+                <p className="text-white/80 leading-relaxed">{nextDelivery.description}</p>
+              </div>
+              <div className="flex justify-end">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide bg-white text-indigo-600 px-5 py-2.5 rounded-lg group-hover:translate-x-1 transition-transform shadow-md">
                   Ver Detalles <ArrowRight size={14} />
                 </div>
               </div>
-            ) : (
-              <div className="relative z-10 py-4">
-                <h4 className="text-2xl font-black tracking-tight mb-2">Sin entregas hoy</h4>
-                <p className="text-indigo-100/60 font-bold text-xs uppercase tracking-widest">¡Excelente trabajo!</p>
+            </div>
+          ) : (
+            <div className="relative z-10 flex-1 flex flex-col">
+              <h4 className="text-lg font-bold mb-1">Sin entregas hoy</h4>
+              <p className="text-white/70 text-xs flex-1">¡Excelente trabajo!</p>
+              <div className="flex justify-end">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide bg-white text-indigo-600 px-5 py-2.5 rounded-lg shadow-md opacity-50">
+                  Ver Agenda <ArrowRight size={14} />
+                </div>
               </div>
-            )}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Actividad Reciente - Next to Próxima Entrega */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+          className="md:col-span-12 lg:col-span-8 bg-white p-6 rounded-lg border-2 border-neutral-200 shadow-sm"
+        >
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-neutral-900">Actividad Reciente</h3>
+              <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide mt-1">Últimos 5 movimientos del sistema</p>
+            </div>
+            <button onClick={() => onNavigate('agenda')} className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide hover:underline">Ver Todo</button>
           </div>
 
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-35 group hover:border-indigo-200 transition-colors cursor-pointer" onClick={() => onNavigate('agenda')}>
-              <div className="flex justify-between items-start">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:scale-110 transition-transform">
-                  <ShoppingCart size={20} />
-                </div>
-                <span className="text-2xl font-black text-slate-900">{pendingOrdersCount}</span>
-              </div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedidos Activos</span>
-            </div>
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-35 group hover:border-rose-200 transition-colors cursor-pointer" onClick={() => onManageStock()}>
-              <div className="flex justify-between items-start">
-                <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl group-hover:scale-110 transition-transform">
-                  <Package size={20} />
-                </div>
-                <span className="text-2xl font-black text-slate-900">{lowStockProducts.length}</span>
-              </div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bajo Stock</span>
+          <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-neutral-300 bg-neutral-100">
+                    <th className="border-r border-neutral-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-neutral-700">
+                      Cliente
+                    </th>
+                    <th className="border-r border-neutral-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-neutral-700">
+                      Descripción
+                    </th>
+                    <th className="border-r border-neutral-200 px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-neutral-700">
+                      Estado
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-neutral-700">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200">
+                  {recentOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      onClick={() => onNavigate('agenda')}
+                      className="border-b border-neutral-200 transition-colors hover:bg-neutral-50 cursor-pointer"
+                    >
+                      <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3">
+                        <span className="font-medium text-neutral-900">{order.customerName}</span>
+                      </td>
+                      <td className="border-r border-neutral-200 px-4 py-3 max-w-[200px]">
+                        <p className="text-sm text-neutral-700 truncate" title={order.description}>
+                          {order.description}
+                        </p>
+                      </td>
+                      <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                          order.status === 'terminado' ? 'bg-emerald-100 text-emerald-700' :
+                          order.status === 'proceso' ? 'bg-blue-100 text-blue-700' :
+                          order.status === 'pedido' ? 'bg-amber-100 text-amber-700' :
+                          'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {order.status === 'terminado' ? 'Terminado' :
+                           order.status === 'proceso' ? 'En Proceso' :
+                           order.status === 'pedido' ? 'Pendiente' :
+                           'Entregado'}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <span className="font-semibold text-neutral-900">
+                          ${order.totalAmount.toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </motion.div>
 
-        {/* Production Pipeline Visual (New) */}
+        {/* Pedidos Activos con Funnel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-          className="md:col-span-12 lg:col-span-12 bg-white p-8 rounded-4xl border border-slate-100 shadow-sm"
+          className="md:col-span-6 lg:col-span-6 bg-white p-6 rounded-lg border-2 border-neutral-200 shadow-sm flex flex-col gap-4"
         >
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">ESTADO DE LOS PEDIDOS</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Estado actual de todos los trabajos activos</p>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                <ShoppingCart size={18} />
+              </div>
+              <div>
+                <h4 className="font-bold text-neutral-900 text-sm">Pedidos Activos</h4>
+                <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Pipeline de producción</p>
+              </div>
             </div>
-            <button onClick={() => onNavigate('agenda')} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Gestionar Pedidos</button>
+            <span className="text-xl font-bold text-neutral-900">{pendingOrdersCount}</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <PipelineStep 
-              label="Pendientes" 
-              count={pipelineData.pedido} 
-              color="bg-amber-500" 
-              bgColor="bg-amber-50" 
-              textColor="text-amber-700" 
-              icon={<Clock size={16} />}
-              percentage={pipelineData.pedido > 0 ? (pipelineData.pedido / orders.length) * 100 : 0}
-            />
-            <PipelineStep 
-              label="En Proceso" 
-              count={pipelineData.proceso} 
-              color="bg-indigo-500" 
-              bgColor="bg-indigo-50" 
-              textColor="text-indigo-700" 
-              icon={<Zap size={16} />}
-              percentage={pipelineData.proceso > 0 ? (pipelineData.proceso / orders.length) * 100 : 0}
-            />
-            <PipelineStep 
-              label="Terminados" 
-              count={pipelineData.terminado} 
-              color="bg-emerald-500" 
-              bgColor="bg-emerald-50" 
-              textColor="text-emerald-700" 
-              icon={<CheckCircle size={16} />}
-              percentage={pipelineData.terminado > 0 ? (pipelineData.terminado / orders.length) * 100 : 0}
-            />
-            <PipelineStep 
-              label="Entregados" 
-              count={pipelineData.entregado} 
-              color="bg-slate-500" 
-              bgColor="bg-slate-50" 
-              textColor="text-slate-700" 
-              icon={<Package size={16} />}
-              percentage={pipelineData.entregado > 0 ? (pipelineData.entregado / orders.length) * 100 : 0}
-            />
+          {/* Pipeline Funnel - Compact */}
+          <div className="flex flex-col gap-2">
+            {/* Pendientes */}
+            <div className="flex items-center gap-2 cursor-pointer hover:bg-amber-50 p-2 rounded-lg transition-colors" onClick={() => onNavigate('agenda')}>
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                <Clock size={14} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-neutral-700">Pendientes</span>
+                  <span className="text-xs font-bold text-amber-600">{pipelineData.pedido}</span>
+                </div>
+                <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pipelineData.pedido > 0 ? (pipelineData.pedido / orders.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* En Proceso */}
+            <div className="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 p-2 rounded-lg transition-colors" onClick={() => onNavigate('agenda')}>
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <Zap size={14} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-neutral-700">En Proceso</span>
+                  <span className="text-xs font-bold text-indigo-600">{pipelineData.proceso}</span>
+                </div>
+                <div className="h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pipelineData.proceso > 0 ? (pipelineData.proceso / orders.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Terminados */}
+            <div className="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-2 rounded-lg transition-colors" onClick={() => onNavigate('agenda')}>
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <CheckCircle size={14} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-neutral-700">Terminados</span>
+                  <span className="text-xs font-bold text-emerald-600">{pipelineData.terminado}</span>
+                </div>
+                <div className="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pipelineData.terminado > 0 ? (pipelineData.terminado / orders.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Entregados */}
+            <div className="flex items-center gap-2 cursor-pointer hover:bg-neutral-100 p-2 rounded-lg transition-colors" onClick={() => onNavigate('agenda')}>
+              <div className="w-8 h-8 rounded-lg bg-neutral-200 text-neutral-600 flex items-center justify-center">
+                <Package size={14} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-neutral-700">Entregados</span>
+                  <span className="text-xs font-bold text-neutral-600">{pipelineData.entregado}</span>
+                </div>
+                <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-neutral-500 rounded-full" style={{ width: `${pipelineData.entregado > 0 ? (pipelineData.entregado / orders.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
 
-        {/* Recent Activity (Large) */}
+        {/* Alertas Críticas de Stock */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
-          className="md:col-span-8 lg:col-span-9 bg-white p-8 rounded-4xl border border-slate-100 shadow-sm"
+          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+          className="md:col-span-6 lg:col-span-6 bg-rose-50 border-2 border-rose-200 p-6 rounded-lg flex flex-col gap-4 relative overflow-hidden"
         >
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Actividad Reciente</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Últimos 5 movimientos del sistema</p>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-200/20 rounded-full -mr-16 -mt-16 blur-3xl" />
+
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="bg-rose-500 text-white p-3 rounded-lg shadow-sm animate-pulse">
+              <AlertTriangle size={20} />
             </div>
-            <button onClick={() => onNavigate('agenda')} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Ver Todo</button>
+            <div className="flex-1">
+              <h4 className="text-rose-950 font-bold text-lg">Alertas Críticas</h4>
+              <p className="text-rose-700/70 font-semibold text-[10px] uppercase tracking-wide">Stock bajo</p>
+            </div>
           </div>
-          
-          <div className="space-y-3">
-            {recentOrders.map((order, idx) => (
-              <div 
-                key={order.id}
-                onClick={() => onNavigate('agenda')}
-                className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-transparent hover:border-slate-200 hover:bg-white transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    order.status === 'terminado' ? 'bg-emerald-100 text-emerald-600' : 
-                    order.status === 'proceso' ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'
-                  }`}>
-                    <ShoppingCart size={20} />
+
+          {lowStockProductsWithImpact.length > 0 ? (
+            <div className="flex flex-col gap-2 relative z-10 max-h-40 overflow-y-auto">
+              {lowStockProductsWithImpact.slice(0, 3).map(p => (
+                <div key={p.id} className="bg-white px-3 py-2 rounded-lg border border-rose-200 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span className="font-semibold text-neutral-800 text-xs">{p.name}</span>
                   </div>
-                  <div>
-                    <p className="font-black text-slate-900 text-sm">{order.customerName}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{order.description}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-black text-slate-900 text-base">${order.totalAmount.toLocaleString()}</p>
-                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                    order.status === 'terminado' ? 'bg-emerald-50 text-emerald-600' : 
-                    order.status === 'proceso' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                    {order.status}
+                  <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                    Faltan {(p.minStock || 3) - p.stock}
                   </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-4 relative z-10">
+              <CheckCircle className="h-8 w-8 text-emerald-500 mb-2" />
+              <p className="text-sm font-semibold text-neutral-600">Stock en orden</p>
+              <p className="text-xs text-neutral-400">Sin alertas críticas</p>
+            </div>
+          )}
+
+          <button
+            onClick={() => onManageStock()}
+            className="bg-rose-600 text-white px-4 py-2 rounded-lg font-semibold text-xs uppercase tracking-wide shadow-sm hover:bg-rose-700 transition-all relative z-10"
+          >
+            Gestionar Stock
+          </button>
         </motion.div>
 
-        {/* Stock Alerts (Full Width if needed) */}
-        {lowStockProductsWithImpact.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.7, duration: 0.8, ease: "easeOut" }}
-            className="md:col-span-12 bg-rose-50 border border-rose-100 p-8 rounded-4xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-rose-200/20 rounded-full -mr-32 -mt-32 blur-3xl" />
-            <div className="bg-rose-500 text-white p-5 rounded-3xl shadow-lg shadow-rose-200 animate-pulse relative z-10">
-              <AlertTriangle size={32} />
-            </div>
-            <div className="flex-1 text-center md:text-left relative z-10">
-              <h4 className="text-rose-950 font-black text-2xl tracking-tight mb-2">Alertas Críticas de Stock</h4>
-              <p className="text-rose-700/70 font-bold uppercase tracking-widest text-[10px] mb-6">Insumos necesarios para completar pedidos activos:</p>
-              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                {lowStockProductsWithImpact.slice(0, 4).map(p => (
-                  <div key={p.id} className="bg-white px-4 py-3 rounded-2xl border border-rose-100 shadow-sm flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-rose-500" />
-                    <span className="font-black text-slate-800 text-xs">{p.name}</span>
-                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">Faltan {(p.minStock || 3) - p.stock}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button 
-              onClick={() => onManageStock()}
-              className="bg-rose-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all hover:-translate-y-1 relative z-10"
-            >
-              Gestionar Stock
-            </button>
-          </motion.div>
-        )}
+
       </div>
     </div>
   );
