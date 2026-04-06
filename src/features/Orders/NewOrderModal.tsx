@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronRight, ChevronLeft, User, Package, FileText, CheckCircle, Mail, Phone, MessageSquare, Calendar, DollarSign } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, User, Package, FileText, CheckCircle, Mail, Phone, MessageSquare, Calendar, DollarSign, Loader2 } from 'lucide-react';
 import { Order, OrderProduct, Product, PaymentMethod, OrderStatus } from '@/types';
 import { ProductSelectorModal } from './ProductSelectorModal';
 
@@ -14,6 +14,8 @@ interface NewOrderModalProps {
   setSelectedProducts: (products: OrderProduct[]) => void;
   products: Product[];
   updateAmounts: (total: number, deposit: number) => void;
+  isSaving?: boolean;
+  editingId?: string | null;
 }
 
 export const NewOrderModal: React.FC<NewOrderModalProps> = ({
@@ -25,10 +27,13 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   selectedProducts,
   setSelectedProducts,
   products,
-  updateAmounts
+  updateAmounts,
+  isSaving = false,
+  editingId = null
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showProductSelector, setShowProductSelector] = useState(false);
+  const [wasSaving, setWasSaving] = React.useState(false);
 
   const steps = [
     { number: 1, title: 'Cliente', icon: User },
@@ -36,6 +41,18 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
     { number: 3, title: 'Detalles', icon: FileText },
     { number: 4, title: 'Finalizar', icon: CheckCircle }
   ];
+
+  // Resetear step cuando termine de guardar exitosamente
+  useEffect(() => {
+    if (wasSaving && !isSaving && !isOpen) {
+      // El modal se cerró después de guardar exitosamente
+      setCurrentStep(1);
+      setWasSaving(false);
+    }
+    if (isSaving) {
+      setWasSaving(true);
+    }
+  }, [isSaving, isOpen, wasSaving]);
 
   const canProceed = () => {
     switch (currentStep) {
@@ -64,7 +81,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
 
   const handleSave = () => {
     onSave();
-    setCurrentStep(1);
+    // El step se reseteará automáticamente cuando termine de guardar
   };
 
   if (!isOpen) return null;
@@ -78,7 +95,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={isSaving ? undefined : onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
@@ -94,12 +111,24 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
             <div className="px-8 py-6 border-b border-slate-200">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Nuevo Trabajo</h2>
-                  <p className="text-sm text-slate-500 mt-1">Complete los datos del pedido</p>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      {editingId ? 'Editar Pedido' : 'Nuevo Trabajo'}
+                    </h2>
+                    {editingId && (
+                      <span className="px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full">
+                        EDITANDO
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {editingId ? 'Modifique los datos del pedido' : 'Complete los datos del pedido'}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-slate-100 transition-colors"
+                  disabled={isSaving}
+                  className="p-2 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   style={{ borderRadius: '4px' }}
                 >
                   <X size={20} className="text-slate-400" />
@@ -273,10 +302,10 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
                             return (
                               <div
                                 key={product.productId}
-                                className="p-4 border border-slate-200 bg-slate-50 flex items-center justify-between"
+                                className="p-4 border border-slate-200 bg-slate-50 flex items-center justify-between group hover:border-slate-300 transition-all"
                                 style={{ borderRadius: '4px' }}
                               >
-                                <div>
+                                <div className="flex-1">
                                   <h4 className="font-bold text-slate-900">{product.name}</h4>
                                   {productInfo && (
                                     <p className="text-xs text-slate-500 mt-1">
@@ -284,8 +313,50 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
                                     </p>
                                   )}
                                 </div>
-                                <div className="text-right">
-                                  <span className="font-bold text-slate-900">{product.quantity} unidades</span>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        const updated = selectedProducts.map(p =>
+                                          p.productId === product.productId
+                                            ? { ...p, quantity: Math.max(1, p.quantity - 1) }
+                                            : p
+                                        );
+                                        setSelectedProducts(updated);
+                                      }}
+                                      className="w-7 h-7 flex items-center justify-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold transition-colors"
+                                      style={{ borderRadius: '4px' }}
+                                    >
+                                      -
+                                    </button>
+                                    <span className="font-bold text-slate-900 min-w-[3rem] text-center">
+                                      {product.quantity}
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        const updated = selectedProducts.map(p =>
+                                          p.productId === product.productId
+                                            ? { ...p, quantity: p.quantity + 1 }
+                                            : p
+                                        );
+                                        setSelectedProducts(updated);
+                                      }}
+                                      className="w-7 h-7 flex items-center justify-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold transition-colors"
+                                      style={{ borderRadius: '4px' }}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProducts(selectedProducts.filter(p => p.productId !== product.productId));
+                                    }}
+                                    className="p-2 text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                    style={{ borderRadius: '4px' }}
+                                    title="Eliminar producto"
+                                  >
+                                    <X size={18} />
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -523,7 +594,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
             <div className="px-8 py-6 border-t border-slate-200 flex items-center justify-between bg-slate-50">
               <button
                 onClick={handleBack}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isSaving}
                 className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 style={{ borderRadius: '4px' }}
               >
@@ -538,7 +609,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
               {currentStep < 4 ? (
                 <button
                   onClick={handleNext}
-                  disabled={!canProceed()}
+                  disabled={!canProceed() || isSaving}
                   className="px-6 py-2.5 bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   style={{ borderRadius: '4px' }}
                 >
@@ -548,11 +619,21 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
               ) : (
                 <button
                   onClick={handleSave}
-                  className="px-8 py-2.5 bg-green-600 text-white font-bold hover:bg-green-700 transition-colors flex items-center gap-2"
+                  disabled={isSaving}
+                  className="px-8 py-2.5 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   style={{ borderRadius: '4px' }}
                 >
-                  <CheckCircle size={16} />
-                  Guardar Pedido
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      {editingId ? 'Actualizando...' : 'Guardando...'}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} />
+                      {editingId ? 'Actualizar Pedido' : 'Guardar Pedido'}
+                    </>
+                  )}
                 </button>
               )}
             </div>

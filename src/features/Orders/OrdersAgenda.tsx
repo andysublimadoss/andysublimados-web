@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Plus, CheckCircle, Clock, Trash2, X, Search, 
-  Calendar as CalendarIcon, MessageCircle, Package, 
+import {
+  Plus, CheckCircle, Clock, Trash2, X, Search,
+  Calendar as CalendarIcon, MessageCircle, Package,
   Minus, LayoutList, CalendarDays, ChevronLeft, ChevronRight,
   AlertCircle, Edit2, DollarSign, Wallet, Filter, Check,
   CalendarRange, CreditCard, Truck, ArrowRight, CheckCircle2, Sparkles,
-  Columns, Instagram, Facebook
+  Columns, Instagram, Facebook, Phone, ArrowUpRight
 } from 'lucide-react';
 import { Order, PaymentMethod, CashMovement, MovementType, Customer, Product, OrderProduct, OrderStatus } from '@/types';
 import { getStatusConfig } from '@/utils';
@@ -33,7 +33,7 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
   const daysRemaining = lastDayOfMonth.getDate() - now.getDate();
 
   // Estados de UI local (mantener)
-  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'kanban'>('kanban');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'kanban'>('list');
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -52,6 +52,7 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
     setSelectedProducts,
     debtWarning,
     setDebtWarning,
+    isSaving,
     updateAmounts,
     handleSave,
     openModal,
@@ -204,104 +205,77 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
   ];
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6 bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/20">
-        <div className="flex items-center gap-4">
-          <div className="p-3 md:p-4 bg-indigo-50 text-indigo-600 rounded-2xl md:rounded-3xl shadow-inner">
-            <CalendarIcon size={24} className="md:w-8 md:h-8" />
-          </div>
-          <div>
-            <h2 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">Agenda</h2>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[8px] md:text-[10px] mt-1">Gestión de Producción</p>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="pl-9 pr-4 py-2.5 rounded-lg outline-none w-full bg-transparent text-xs font-medium focus:bg-indigo-50/30 transition-all placeholder:text-slate-400 min-w-[200px]"
+            />
           </div>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="bg-slate-50 p-1 rounded-2xl border border-slate-200 flex shadow-sm overflow-x-auto custom-scrollbar max-w-full flex-1 md:flex-none">
-            {(['todos', 'pedido', 'proceso', 'terminado'] as const).map(s => {
-              const count = s === 'todos' ? orders.length : orders.filter(o => o.status === s).length;
-              const isActive = statusFilter === s;
-              const config = s !== 'todos' ? getStatusConfig(s as OrderStatus) : null;
-              
-              return (
-                <button 
-                  key={s} 
-                  onClick={() => setStatusFilter(s)} 
-                  className={`px-3 py-2 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative whitespace-nowrap ${isActive ? (config?.color || 'bg-slate-900 text-white shadow-lg') : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  {s === 'todos' ? 'Todos' : config?.label}
-                  <span className={`inline-flex items-center justify-center min-w-[16px] md:min-w-[18px] h-[16px] md:h-[18px] px-1 rounded-md text-[7px] md:text-[8px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
 
-          <div className="bg-white p-1 rounded-2xl border border-slate-200 flex shadow-sm">
-            <button onClick={() => setViewMode('calendar')} className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all relative ${viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
-              <CalendarDays size={16} />
-            </button>
-            <button onClick={() => setViewMode('kanban')} className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all relative ${viewMode === 'kanban' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
-              <Columns size={16} />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl transition-all relative ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
-              <LayoutList size={16} />
-            </button>
-          </div>
-          
-          <button onClick={() => openNewWithDate(new Date().toLocaleDateString('en-CA'))} className="w-full md:w-auto flex items-center justify-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-2xl hover:bg-black font-bold shadow-xl transition-all active:scale-95 group">
-            <Plus size={20} className="md:w-6 md:h-6" />
-            <span className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.1em]">Nuevo Trabajo</span>
+        {/* Filtros de vista */}
+        <div className="bg-white p-1 rounded-xl border border-slate-200 flex shadow-sm">
+          <button onClick={() => setViewMode('list')} className={`px-4 py-2.5 rounded-lg transition-all relative ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
+            <LayoutList size={16} />
+          </button>
+          <button onClick={() => setViewMode('kanban')} className={`px-4 py-2.5 rounded-lg transition-all relative ${viewMode === 'kanban' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
+            <Columns size={16} />
+          </button>
+          <button onClick={() => setViewMode('calendar')} className={`px-4 py-2.5 rounded-lg transition-all relative ${viewMode === 'calendar' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}>
+            <CalendarDays size={16} />
           </button>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        <div className="lg:col-span-5 relative">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar cliente o descripción..." 
-            value={filter} 
-            onChange={e => setFilter(e.target.value)} 
-            className="pl-12 pr-6 py-4 md:py-5 border border-slate-100 rounded-[1.5rem] md:rounded-[2rem] outline-none w-full bg-white text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-50 transition-all placeholder:text-slate-300" 
-          />
-        </div>
-
-        <div className="lg:col-span-7 flex flex-wrap items-center gap-4">
-          <div className="bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-200 flex shadow-sm w-full lg:w-auto overflow-x-auto custom-scrollbar">
+          {/* Filtros de fecha */}
+          <div className="bg-white p-1 rounded-xl border border-slate-200 flex shadow-sm">
             {(['hoy', 'semana', 'mes', 'personalizado'] as DateFilterType[]).map(df => (
-              <button 
-                key={df} 
-                onClick={() => handleQuickFilter(df)} 
-                className={`flex-1 min-w-[80px] md:min-w-[100px] px-2 md:px-3 py-2.5 md:py-3 rounded-[1.2rem] md:rounded-[1.5rem] text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all relative ${dateFilter === df ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
+              <button
+                key={df}
+                onClick={() => handleQuickFilter(df)}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all relative ${dateFilter === df ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                {dateFilter === df && <motion.div layoutId="date-filter" className="absolute inset-0 bg-indigo-50 rounded-[1.2rem] md:rounded-[1.5rem] -z-10 border border-indigo-100" />}
+                {dateFilter === df && <motion.div layoutId="date-filter" className="absolute inset-0 bg-indigo-50 rounded-lg -z-10 border border-indigo-100" />}
                 {df === 'hoy' ? 'Día' : df === 'semana' ? 'Semana' : df === 'mes' ? 'Agenda' : 'Rango'}
               </button>
             ))}
           </div>
-          
-          <div className="bg-white p-1.5 rounded-[1.5rem] md:rounded-[2rem] border border-slate-200 flex shadow-sm w-full lg:w-auto overflow-x-auto custom-scrollbar">
+
+          {/* Filtros de estado */}
+          <div className="bg-white p-1 rounded-xl border border-slate-200 flex shadow-sm">
             {['todos', 'pedido', 'proceso', 'terminado', 'entregado'].map(s => (
-              <button 
-                key={s} 
-                onClick={() => setStatusFilter(s as any)} 
-                className={`flex-1 min-w-[80px] px-2 md:px-3 py-2.5 md:py-3 rounded-[1.2rem] md:rounded-[1.5rem] text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all relative ${statusFilter === s ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s as any)}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wide transition-all relative ${statusFilter === s ? 'text-indigo-700' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                {statusFilter === s && <motion.div layoutId="status-filter" className="absolute inset-0 bg-indigo-50 rounded-[1.2rem] md:rounded-[1.5rem] -z-10 border border-indigo-100" />}
+                {statusFilter === s && <motion.div layoutId="status-filter" className="absolute inset-0 bg-indigo-50 rounded-lg -z-10 border border-indigo-100" />}
                 {s === 'todos' ? 'Todos' : s === 'pedido' ? 'Pendiente' : s === 'proceso' ? 'Proceso' : s === 'terminado' ? 'Terminado' : 'Entregado'}
               </button>
             ))}
           </div>
-          <div className="mt-3 px-4 md:px-6 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-            <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              {daysRemaining} {daysRemaining === 1 ? 'día restante' : 'días restantes'}
-            </span>
-          </div>
-        </div>
+
+          {/* Botón Nuevo Trabajo */}
+          <button
+            onClick={() => openNewWithDate(new Date().toLocaleDateString('en-CA'))}
+            className="relative h-[46px] px-6 overflow-hidden bg-zinc-900 transition-all duration-200 rounded-xl group ml-auto"
+          >
+            {/* Gradient background effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-40 group-hover:opacity-80 blur transition-opacity duration-500" />
+
+            {/* Content */}
+            <div className="relative flex items-center justify-center gap-2">
+              <Plus className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-semibold">Nuevo Trabajo</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-white/90" />
+            </div>
+          </button>
       </div>
 
       <AnimatePresence mode="wait">
@@ -313,45 +287,43 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
           transition={{ duration: 0.2 }}
         >
           {viewMode === 'calendar' ? (
-            <div className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
-              <div className="p-6 md:p-10 bg-slate-50/50 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                <h3 className="text-xl md:text-3xl font-black text-slate-900 capitalize tracking-tight">{currentCalendarDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</h3>
+            <div className="bg-white rounded-lg border-2 border-neutral-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 bg-neutral-50 border-b-2 border-neutral-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <h3 className="text-lg md:text-2xl font-bold text-neutral-900 capitalize">{currentCalendarDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}</h3>
                 <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto justify-between">
-                  <button onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1)))} className="p-3 md:p-4 bg-white rounded-xl md:rounded-2xl border border-slate-200 hover:bg-indigo-50 shadow-sm transition-colors"><ChevronLeft size={18} className="md:w-5 md:h-5"/></button>
-                  <button onClick={() => setCurrentCalendarDate(new Date())} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3 bg-white rounded-xl md:rounded-2xl border border-slate-200 text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 shadow-sm transition-colors">Hoy</button>
-                  <button onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1)))} className="p-3 md:p-4 bg-white rounded-xl md:rounded-2xl border border-slate-200 hover:bg-indigo-50 shadow-sm transition-colors"><ChevronRight size={18} className="md:w-5 md:h-5"/></button>
+                  <button onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1)))} className="p-2.5 bg-white rounded-lg border border-neutral-300 hover:bg-violet-50 hover:border-violet-400 transition-colors"><ChevronLeft size={18}/></button>
+                  <button onClick={() => setCurrentCalendarDate(new Date())} className="flex-1 md:flex-none px-4 py-2 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors">Hoy</button>
+                  <button onClick={() => setCurrentCalendarDate(new Date(currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1)))} className="p-2.5 bg-white rounded-lg border border-neutral-300 hover:bg-violet-50 hover:border-violet-400 transition-colors"><ChevronRight size={18}/></button>
                 </div>
               </div>
-              <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/20">
-                {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => <div key={`${d}-${i}`} className="py-3 md:py-5 text-center text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{d}</div>)}
+              <div className="grid grid-cols-7 border-b-2 border-neutral-200 bg-neutral-50">
+                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, i) => <div key={`${d}-${i}`} className="py-3 text-center text-xs font-semibold text-neutral-600 border-r border-neutral-200 last:border-r-0">{d}</div>)}
               </div>
-              <div className="grid grid-cols-7 min-h-[400px] md:min-h-[600px] overflow-x-auto">
+              <div className="grid grid-cols-7 min-h-[500px] md:min-h-[650px]">
                 {days.map((day, idx) => {
                   const dateStr = day ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
                   const dayOrders = filteredOrders.filter(o => o.deliveryDate === dateStr);
                   const todayStr = new Date().toLocaleDateString('en-CA');
                   const isToday = dateStr === todayStr;
                   return (
-                    <div 
-                      key={idx} 
-                      className={`border-r border-b border-slate-50 p-2 md:p-4 min-h-[80px] md:min-h-[140px] transition-all flex flex-col gap-1.5 md:gap-3 group ${day ? 'bg-white hover:bg-indigo-50/30 cursor-pointer' : 'bg-slate-50/30'}`} 
+                    <div
+                      key={idx}
+                      className={`border-r border-b border-neutral-200 p-2 md:p-3 min-h-[100px] md:min-h-[120px] transition-all flex flex-col gap-2 group ${day ? 'bg-white hover:bg-violet-50/30 cursor-pointer' : 'bg-neutral-50'}`}
                       onClick={() => day && openNewWithDate(dateStr)}
                     >
                       {day && (
-                        <div className="flex justify-between items-start">
-                          <span className={`text-[10px] md:text-xs font-black w-6 h-6 md:w-9 md:h-9 flex items-center justify-center rounded-lg md:rounded-2xl transition-all ${isToday ? 'bg-indigo-600 text-white shadow-xl scale-110' : 'text-slate-300 group-hover:text-indigo-400'}`}>{day}</span>
-                          {dayOrders.length > 0 && <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-400 animate-pulse" />}
+                        <div className="flex justify-between items-start mb-1">
+                          <span className={`text-sm md:text-lg font-semibold transition-all ${isToday ? 'bg-violet-600 text-white w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full' : 'text-neutral-700'}`}>{day}</span>
                         </div>
                       )}
-                      <div className="flex-1 space-y-1 md:space-y-1.5 overflow-hidden">
+                      <div className="flex-1 space-y-1 overflow-hidden">
                         {dayOrders.map(order => (
-                          <motion.div 
+                          <motion.div
                             layoutId={`order-${order.id}`}
-                            key={order.id} 
-                            onClick={(e) => { e.stopPropagation(); openModal(order); }} 
-                            className={`px-1.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl text-[7px] md:text-[9px] font-black truncate border shadow-sm transition-transform hover:scale-[1.02] active:scale-95 flex items-center gap-1 ${getStatusConfig(order.status, order.isDelivered).color}`}
+                            key={order.id}
+                            onClick={(e) => { e.stopPropagation(); openModal(order); }}
+                            className={`px-2 md:px-3 py-1 md:py-1.5 rounded-md text-[8px] md:text-[10px] font-medium truncate transition-colors cursor-pointer ${getStatusConfig(order.status, order.isDelivered).color}`}
                           >
-                            {getStatusConfig(order.status, order.isDelivered).icon}
                             <span className="truncate">{order.customerName}</span>
                           </motion.div>
                         ))}
@@ -362,7 +334,7 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
               </div>
             </div>
           ) : viewMode === 'kanban' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 min-h-[600px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-h-[600px]">
               {kanbanColumns.map(col => {
                 const colOrders = filteredOrders.filter(o => {
                   if (col.id === 'entregado') return o.isDelivered;
@@ -370,165 +342,165 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
                 });
 
                 return (
-                  <div key={col.id} className="flex flex-col gap-6 min-w-[320px] max-w-[400px]">
-                    <div className="flex items-center justify-between px-6 py-4 bg-white rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
-                      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${col.color}`} />
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl text-white shadow-lg ${col.color}`}>
+                  <div key={col.id} className="flex flex-col gap-3 min-w-[300px]">
+                    <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border-2 border-neutral-200 shadow-sm relative overflow-hidden">
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${col.color}`} />
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg text-white ${col.color}`}>
                           {col.icon}
                         </div>
                         <div className="flex flex-col">
-                          <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{col.title}</h4>
-                          <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                          <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">{col.title}</h4>
+                          <span className="text-[10px] font-semibold text-neutral-500">
                             ${colOrders.reduce((acc, curr) => acc + curr.totalAmount, 0).toLocaleString('es-AR')}
                           </span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end">
-                        <span className="text-xl font-black text-slate-900">{colOrders.length}</span>
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Trabajos</span>
+                        <span className="text-lg font-bold text-neutral-900">{colOrders.length}</span>
+                        <span className="text-[9px] font-medium text-neutral-400 uppercase">Trabajos</span>
                       </div>
                     </div>
 
-                    <div className="flex-1 space-y-4 bg-slate-50/30 p-4 rounded-[2.5rem] border border-dashed border-slate-200 min-h-[400px] overflow-y-auto custom-scrollbar pb-20">
+                    <div className="flex-1 space-y-2 bg-neutral-50 p-3 rounded-lg border border-neutral-200 min-h-[400px] overflow-y-auto custom-scrollbar pb-20">
                       {colOrders.map(order => (
                         <motion.div
                           layoutId={`order-${order.id}`}
                           key={order.id}
                           onClick={() => openModal(order)}
-                          className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/20 hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden"
+                          className="bg-white p-4 rounded-lg border border-neutral-200 shadow-sm hover:shadow-md hover:border-neutral-300 transition-all cursor-pointer group relative"
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${col.color}`} />
-                          
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${col.color}`} />
+
                           {/* Progress Bar */}
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-slate-50">
-                            <motion.div 
+                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-neutral-100">
+                            <motion.div
                               initial={{ width: 0 }}
-                              animate={{ 
-                                width: order.isDelivered ? '100%' : 
-                                       order.status === 'terminado' ? '75%' : 
-                                       order.status === 'proceso' ? '50%' : '25%' 
+                              animate={{
+                                width: order.isDelivered ? '100%' :
+                                       order.status === 'terminado' ? '75%' :
+                                       order.status === 'proceso' ? '50%' : '25%'
                               }}
                               className={`h-full ${getStatusConfig(order.status, order.isDelivered).color}`}
                             />
                           </div>
 
-                          <div className="flex justify-between items-start mb-4 mt-2">
+                          <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h5 className="font-black text-slate-900 text-lg tracking-tight leading-none mb-1">{order.customerName}</h5>
+                              <h5 className="font-semibold text-neutral-900 text-sm leading-tight mb-1">{order.customerName}</h5>
                               <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{new Date(order.deliveryDate).toLocaleDateString('es-AR')}</span>
+                                <span className="text-[10px] font-medium text-neutral-500">{new Date(order.deliveryDate).toLocaleDateString('es-AR')}</span>
                                 {order.contactMethod && (
-                                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 rounded-md border border-slate-100">
+                                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-neutral-50 rounded border border-neutral-200">
                                     {order.contactMethod === 'WhatsApp' && <MessageCircle size={8} className="text-emerald-500" />}
                                     {order.contactMethod === 'Instagram' && <Instagram size={8} className="text-pink-500" />}
                                     {order.contactMethod === 'Facebook' && <Facebook size={8} className="text-blue-500" />}
-                                    {order.contactMethod === 'Presencial' && <Package size={8} className="text-slate-500" />}
-                                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">{order.contactMethod}</span>
+                                    {order.contactMethod === 'Presencial' && <Package size={8} className="text-neutral-500" />}
+                                    <span className="text-[8px] font-medium text-neutral-400">{order.contactMethod}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
                             {deletingId === order.id ? (
                               <div className="flex items-center gap-1 animate-in zoom-in duration-200">
-                                <button 
+                                <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOrders(o => o.filter(x => x.id !== order.id));
                                     showToast("Pedido eliminado", "success");
                                     setDeletingId(null);
                                   }}
-                                  className="px-2 py-1 bg-rose-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-sm"
+                                  className="px-2 py-1 bg-rose-600 text-white rounded text-[9px] font-semibold uppercase hover:bg-rose-700"
                                 >
                                   Borrar
                                 </button>
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); setDeletingId(null); }}
-                                  className="p-1 bg-slate-100 text-slate-400 rounded-lg hover:text-slate-600 shadow-sm"
+                                  className="p-1 bg-neutral-100 text-neutral-400 rounded hover:text-neutral-600"
                                 >
                                   <X size={12} />
                                 </button>
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDeletingId(order.id);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-rose-500 transition-all"
+                                className="opacity-0 group-hover:opacity-100 p-1.5 text-neutral-300 hover:text-rose-500 transition-all"
                               >
                                 <Trash2 size={14} />
                               </button>
                             )}
                           </div>
-                          
-                          <p className="text-xs text-slate-600 font-medium line-clamp-2 mb-6 bg-slate-50/50 p-3 rounded-xl border border-slate-100 italic">
-                            "{order.description}"
+
+                          <p className="text-xs text-neutral-600 font-normal line-clamp-2 mb-4 bg-neutral-50 px-3 py-2 rounded border border-neutral-100">
+                            {order.description}
                           </p>
 
-                          <div className="flex items-center justify-between mt-auto">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2 text-slate-400">
-                                <CalendarIcon size={12} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">
+                          <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-100">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1.5 text-neutral-400">
+                                <CalendarIcon size={11} />
+                                <span className="text-[10px] font-medium">
                                   {new Date(order.deliveryDate + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
                                 </span>
                               </div>
-                              <a 
+                              <a
                                 href={`https://wa.me/${(order.whatsapp || "").replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${order.customerName}, te escribo por tu pedido de ${order.description}...`)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-all shadow-sm"
+                                className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 transition-all border border-emerald-200"
                                 title="Enviar WhatsApp"
                               >
-                                <MessageCircle size={14} />
+                                <MessageCircle size={12} />
                               </a>
                             </div>
                             <div className="flex items-center gap-1">
                               {col.id !== 'pedido' && col.id !== 'entregado' && (
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'pedido'); }}
-                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all"
+                                  className="p-1.5 bg-neutral-100 text-neutral-400 rounded hover:bg-red-50 hover:text-red-500 transition-all border border-neutral-200"
                                   title="Mover a Pendiente"
                                 >
-                                  <ArrowRight size={12} className="rotate-180" />
+                                  <ArrowRight size={11} className="rotate-180" />
                                 </button>
                               )}
                               {col.id === 'pedido' && (
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'proceso'); }}
-                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-yellow-50 hover:text-yellow-600 transition-all"
+                                  className="p-1.5 bg-neutral-100 text-neutral-400 rounded hover:bg-yellow-50 hover:text-yellow-600 transition-all border border-neutral-200"
                                   title="Mover a En Proceso"
                                 >
-                                  <ArrowRight size={12} />
+                                  <ArrowRight size={11} />
                                 </button>
                               )}
                               {col.id === 'proceso' && (
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'terminado'); }}
-                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                                  className="p-1.5 bg-neutral-100 text-neutral-400 rounded hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-neutral-200"
                                   title="Mover a Terminado"
                                 >
-                                  <ArrowRight size={12} />
+                                  <ArrowRight size={11} />
                                 </button>
                               )}
                               {col.id === 'terminado' && (
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); toggleOrderDelivery(order.id); }}
-                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                                  className="p-1.5 bg-neutral-100 text-neutral-400 rounded hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-neutral-200"
                                   title="Marcar como Entregado"
                                 >
-                                  <Truck size={12} />
+                                  <Truck size={11} />
                                 </button>
                               )}
                               {col.id === 'entregado' && (
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); toggleOrderDelivery(order.id); }}
-                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 hover:text-slate-600 transition-all"
+                                  className="p-1.5 bg-neutral-100 text-neutral-400 rounded hover:bg-neutral-200 hover:text-neutral-600 transition-all border border-neutral-200"
                                   title="Desmarcar Entrega"
                                 >
-                                  <ArrowRight size={12} className="rotate-180" />
+                                  <ArrowRight size={11} className="rotate-180" />
                                 </button>
                               )}
                             </div>
@@ -536,9 +508,9 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
                         </motion.div>
                       ))}
                       {colOrders.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-10 text-slate-300">
-                          <Package size={24} className="mb-2 opacity-20" />
-                          <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Vacío</p>
+                        <div className="flex flex-col items-center justify-center py-10 text-neutral-300">
+                          <Package size={20} className="mb-2 opacity-30" />
+                          <p className="text-[10px] font-medium uppercase opacity-50">Vacío</p>
                         </div>
                       )}
                     </div>
@@ -547,120 +519,229 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
               })}
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between px-4">
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 bg-white p-6 rounded-lg border border-neutral-200 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
                     <LayoutList size={20} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                      {dateFilter === 'hoy' ? 'Trabajos de Hoy' : 
-                       dateFilter === 'semana' ? 'Trabajos de la Semana' : 
+                    <h3 className="text-xl font-bold text-neutral-900">
+                      {dateFilter === 'hoy' ? 'Trabajos de Hoy' :
+                       dateFilter === 'semana' ? 'Trabajos de la Semana' :
                        dateFilter === 'mes' ? 'Agenda Completa' : 'Rango Personalizado'}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                      {filteredOrders.length} {filteredOrders.length === 1 ? 'Trabajo encontrado' : 'Trabajos encontrados'}
+                    <p className="text-sm text-neutral-500 mt-0.5">
+                      {filteredOrders.length} {filteredOrders.length === 1 ? 'trabajo' : 'trabajos'}
                     </p>
                   </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-                {filteredOrders.map(order => (
-                <motion.div 
-                  layoutId={`order-${order.id}`}
-                  key={order.id} 
-                  className="bg-white rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:shadow-2xl transition-all"
-                >
-                  <div className={`absolute left-0 top-0 bottom-0 w-2 md:w-3 ${getStatusConfig(order.status, order.isDelivered).dot}`}></div>
-                  
-                  {/* Progress Bar */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-slate-100">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ 
-                        width: order.isDelivered ? '100%' : 
-                               order.status === 'terminado' ? '75%' : 
-                               order.status === 'proceso' ? '50%' : '25%' 
-                      }}
-                      className={`h-full ${getStatusConfig(order.status, order.isDelivered).color}`}
-                    />
-                  </div>
 
-                  <div className="flex justify-between items-start mb-4 md:mb-6 mt-2">
-                    <div>
-                      <h3 className="font-black text-slate-900 text-xl md:text-2xl tracking-tight leading-none mb-1 md:mb-2">{order.customerName}</h3>
-                      <div className="flex flex-wrap items-center gap-3">
-                         <div className="flex items-center gap-1.5">
-                            <MessageCircle size={12} className="text-emerald-500" />
-                            <span className="text-[9px] md:text-[10px] font-bold text-slate-400">{order.whatsapp}</span>
-                         </div>
-                         {order.contactMethod && (
-                           <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-lg border border-slate-100">
-                              {order.contactMethod === 'WhatsApp' && <MessageCircle size={10} className="text-emerald-500" />}
-                              {order.contactMethod === 'Instagram' && <Instagram size={10} className="text-pink-500" />}
-                              {order.contactMethod === 'Facebook' && <Facebook size={10} className="text-blue-500" />}
-                              {order.contactMethod === 'Presencial' && <Package size={10} className="text-slate-500" />}
-                              <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-500">{order.contactMethod}</span>
-                           </div>
-                         )}
-                      </div>
-                    </div>
-                    <span className={`flex items-center gap-1.5 text-[8px] md:text-[9px] font-black uppercase tracking-widest px-3 md:px-4 py-1 md:py-1.5 rounded-full border shadow-sm ${getStatusConfig(order.status, order.isDelivered).color}`}>
-                      {getStatusConfig(order.status, order.isDelivered).icon}
-                      {getStatusConfig(order.status, order.isDelivered).label}
-                    </span>
-                  </div>
-                  <p className="text-slate-500 font-medium text-xs md:text-sm line-clamp-2 mb-6 md:mb-8 bg-slate-50 p-3 md:p-4 rounded-xl md:rounded-2xl border border-slate-100 italic">"{order.description}"</p>
-                  <div className="flex justify-between items-end">
-                    <div className="flex gap-4 md:gap-6">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] md:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Entrega</span>
-                        <div className="flex items-center gap-1.5 md:gap-2 text-slate-700">
-                           <CalendarIcon size={12} className="text-indigo-400 md:w-3.5 md:h-3.5" />
-                           <span className="text-[10px] md:text-xs font-black">{new Date(order.deliveryDate + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[8px] md:text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Pago</span>
-                        <div className="flex items-center gap-1.5 md:gap-2">
-                           {order.remainingPaid ? <CheckCircle size={12} className="text-emerald-500 md:w-3.5 md:h-3.5" /> : <Clock size={12} className="text-rose-400 md:w-3.5 md:h-3.5" />}
-                           <span className={`text-[10px] md:text-xs font-black ${order.remainingPaid ? 'text-emerald-600' : 'text-rose-500'}`}>
-                             {order.remainingPaid ? 'Saldado' : `$${order.remainingAmount.toLocaleString()}`}
-                           </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1.5 md:gap-2">
-                      <button onClick={() => openModal(order)} className="p-3 md:p-4 bg-slate-100 text-slate-500 rounded-xl md:rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"><Edit2 size={16} className="md:w-5 md:h-5" /></button>
-                      {deletingId === order.id ? (
-                        <div className="flex items-center gap-1.5 md:gap-2 animate-in zoom-in duration-200">
-                          <button
-                            onClick={() => {
-                              deleteOrder(order.id);
-                              setDeletingId(null);
-                            }}
-                            className="px-3 md:px-4 py-2 md:py-3 bg-rose-600 text-white rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-lg"
-                          >
-                            Borrar
-                          </button>
-                          <button 
-                            onClick={() => setDeletingId(null)}
-                            className="p-3 md:p-4 bg-white text-slate-400 rounded-xl md:rounded-2xl border border-slate-100 hover:text-slate-600 shadow-sm"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
+              {/* Table */}
+              <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white shadow">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse min-w-[1200px]">
+                    <thead>
+                      <tr className="border-b-2 border-neutral-300 bg-neutral-100">
+                        <th className="border-r border-neutral-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Cliente
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Descripción
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Entrega
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Estado
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Total
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Seña
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Saldo
+                        </th>
+                        <th className="border-r border-neutral-200 px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Contacto
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-neutral-700">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-200">
+                      {filteredOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-12 text-center">
+                            <div className="flex flex-col items-center">
+                              <Package className="h-12 w-12 text-neutral-300 mb-3" />
+                              <p className="text-sm font-medium text-neutral-600">
+                                No se encontraron trabajos
+                              </p>
+                              <p className="text-xs text-neutral-400 mt-1">
+                                Ajusta los filtros de búsqueda
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
                       ) : (
-                        <button onClick={() => setDeletingId(order.id)} className="p-3 md:p-4 bg-rose-50 text-rose-300 rounded-xl md:rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"><Trash2 size={16} className="md:w-5 md:h-5" /></button>
+                        filteredOrders.map((order) => (
+                          <tr
+                            key={order.id}
+                            className="border-b border-neutral-200 transition-colors hover:bg-neutral-50"
+                          >
+                            {/* Cliente */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-neutral-900">{order.customerName}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-500 mt-0.5">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{order.whatsapp}</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Descripción */}
+                            <td className="border-r border-neutral-200 px-4 py-3 max-w-[200px]">
+                              <p className="text-sm text-neutral-700 truncate" title={order.description}>
+                                {order.description}
+                              </p>
+                            </td>
+
+                            {/* Entrega */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3">
+                              <div className="flex items-center gap-1.5 text-sm text-neutral-600">
+                                <CalendarIcon className="h-3.5 w-3.5 text-neutral-400" />
+                                <span>{new Date(order.deliveryDate).toLocaleDateString('es-AR')}</span>
+                              </div>
+                            </td>
+
+                            {/* Estado */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => {
+                                    if (order.isDelivered) {
+                                      toggleOrderDelivery(order.id);
+                                    } else if (order.status === 'pedido') {
+                                      updateOrderStatus(order.id, 'proceso');
+                                    } else if (order.status === 'proceso') {
+                                      updateOrderStatus(order.id, 'terminado');
+                                    } else if (order.status === 'terminado') {
+                                      toggleOrderDelivery(order.id);
+                                    }
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${getStatusConfig(order.status, order.isDelivered).color} hover:opacity-80`}
+                                  title="Click para avanzar estado"
+                                >
+                                  {getStatusConfig(order.status, order.isDelivered).icon}
+                                  <span>{getStatusConfig(order.status, order.isDelivered).label}</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Total */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-right">
+                              <span className="font-semibold text-neutral-900">
+                                ${order.totalAmount.toLocaleString()}
+                              </span>
+                            </td>
+
+                            {/* Seña */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-right">
+                              <span className="text-sm text-emerald-600 font-medium">
+                                ${order.depositAmount.toLocaleString()}
+                              </span>
+                            </td>
+
+                            {/* Saldo */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-right">
+                              {order.remainingPaid ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  Pagado
+                                </span>
+                              ) : (
+                                <span className="text-sm text-amber-600 font-medium">
+                                  ${order.remainingAmount.toLocaleString()}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Contacto */}
+                            <td className="whitespace-nowrap border-r border-neutral-200 px-4 py-3 text-center">
+                              {order.contactMethod && (
+                                <div className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">
+                                  {order.contactMethod === 'WhatsApp' && <MessageCircle className="h-3 w-3 text-emerald-500" />}
+                                  {order.contactMethod === 'Instagram' && <Instagram className="h-3 w-3 text-pink-500" />}
+                                  {order.contactMethod === 'Facebook' && <Facebook className="h-3 w-3 text-blue-500" />}
+                                  {order.contactMethod === 'Presencial' && <Package className="h-3 w-3 text-neutral-500" />}
+                                  <span>{order.contactMethod}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Acciones */}
+                            <td className="whitespace-nowrap px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <a
+                                  href={`https://wa.me/${(order.whatsapp || "").replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${order.customerName}, te escribo por tu pedido de ${order.description}...`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center rounded-lg p-1.5 text-emerald-500 transition-colors hover:bg-emerald-50 cursor-pointer"
+                                  title="Enviar WhatsApp"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </a>
+                                <button
+                                  onClick={() => openModal(order)}
+                                  className="inline-flex items-center rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-indigo-600"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                {deletingId === order.id ? (
+                                  <div className="flex items-center gap-1 animate-in zoom-in duration-200">
+                                    <button
+                                      onClick={() => {
+                                        deleteOrder(order.id);
+                                        setDeletingId(null);
+                                      }}
+                                      className="px-2 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700"
+                                    >
+                                      Confirmar
+                                    </button>
+                                    <button
+                                      onClick={() => setDeletingId(null)}
+                                      className="inline-flex items-center rounded-lg p-1 text-neutral-400 hover:bg-neutral-100"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeletingId(order.id)}
+                                    className="inline-flex items-center rounded-lg p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-red-600"
+                                    title="Eliminar"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
           )}
         </motion.div>
       </AnimatePresence>
@@ -675,6 +756,8 @@ const OrdersAgenda: React.FC<OrdersAgendaProps> = ({ orders, setOrders, setMovem
         setSelectedProducts={setSelectedProducts}
         products={products}
         updateAmounts={updateAmounts}
+        isSaving={isSaving}
+        editingId={editingId}
       />
       {/* Debt Warning Modal */}
       <AnimatePresence>

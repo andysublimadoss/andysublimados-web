@@ -30,6 +30,7 @@ export function useOrders({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<OrderProduct[]>([]);
   const [debtWarning, setDebtWarning] = useState<{ isOpen: boolean, amount: number, onConfirm: () => void } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     description: '',
@@ -218,12 +219,58 @@ export function useOrders({
       return;
     }
 
+    setIsSaving(true);
     try {
       console.log('🔵 Guardando pedido...', { editingId, formData, selectedProducts });
 
-      // Stock deduction for new orders
-      if (!editingId && selectedProducts.length > 0) {
-        console.log('📦 Deduciendo stock...', selectedProducts);
+      // Get old order if editing
+      const oldOrder = editingId ? orders.find(o => o.id === editingId) : undefined;
+
+      // Stock management
+      if (editingId && oldOrder) {
+        console.log('🔄 EDITANDO - Gestionando stock...');
+        const updatedProducts = [...products];
+
+        // 1. Return old products to stock
+        if (oldOrder.linkedProducts && oldOrder.linkedProducts.length > 0) {
+          console.log('📦 PASO 1: Devolviendo productos viejos al stock:', oldOrder.linkedProducts);
+          for (const oldProduct of oldOrder.linkedProducts) {
+            const pIdx = updatedProducts.findIndex(p => p.id === oldProduct.productId);
+            if (pIdx !== -1) {
+              const newStock = updatedProducts[pIdx].stock + oldProduct.quantity;
+              console.log(`  ↑ ${oldProduct.name}: ${updatedProducts[pIdx].stock} + ${oldProduct.quantity} = ${newStock}`);
+              await productsService.updateStock(oldProduct.productId, newStock);
+              updatedProducts[pIdx] = {
+                ...updatedProducts[pIdx],
+                stock: newStock
+              };
+            }
+          }
+        }
+
+        // 2. Deduct new products from stock (using already updated array)
+        if (selectedProducts.length > 0) {
+          console.log('📦 PASO 2: Descontando productos nuevos del stock:', selectedProducts);
+          for (const newProduct of selectedProducts) {
+            const pIdx = updatedProducts.findIndex(p => p.id === newProduct.productId);
+            if (pIdx !== -1) {
+              const newStock = Math.max(0, updatedProducts[pIdx].stock - newProduct.quantity);
+              console.log(`  ↓ ${newProduct.name}: ${updatedProducts[pIdx].stock} - ${newProduct.quantity} = ${newStock}`);
+              await productsService.updateStock(newProduct.productId, newStock);
+              updatedProducts[pIdx] = {
+                ...updatedProducts[pIdx],
+                stock: newStock
+              };
+            }
+          }
+        }
+
+        // Update state once with all changes
+        setProducts(updatedProducts);
+        console.log('✅ Stock actualizado completamente');
+      } else if (!editingId && selectedProducts.length > 0) {
+        // Stock deduction for new orders
+        console.log('📦 Deduciendo stock para nuevo pedido...', selectedProducts);
         await deductStock(selectedProducts);
       }
 
@@ -245,8 +292,6 @@ export function useOrders({
       };
 
       console.log('📝 Datos a guardar en Supabase:', orderDataWithoutId);
-
-      const oldOrder = editingId ? orders.find(o => o.id === editingId) : undefined;
 
       // Create or update order in Supabase
       let savedOrder: Order;
@@ -279,6 +324,8 @@ export function useOrders({
         code: err?.code
       });
       showToast(`Error: ${err?.message || 'Error al guardar el pedido'}`, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -410,6 +457,7 @@ export function useOrders({
     setSelectedProducts,
     debtWarning,
     setDebtWarning,
+    isSaving,
     updateAmounts,
     handleSave,
     openModal,

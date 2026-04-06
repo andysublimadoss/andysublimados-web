@@ -13,6 +13,7 @@
     "@google/genai": "^1.38.0",
     "@supabase/supabase-js": "^2.101.1",
     "@types/express": "^5.0.6",
+    "clsx": "^2.1.1",
     "express": "^5.2.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
@@ -22,6 +23,7 @@
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.14.0",
     "recharts": "^3.7.0",
+    "tailwind-merge": "^3.5.0",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
