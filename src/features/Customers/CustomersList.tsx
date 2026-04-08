@@ -21,6 +21,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { Customer, Order } from '@/types';
+import { customersService } from '@/services/supabase';
 
 interface CustomersListProps {
   customers: Customer[];
@@ -107,12 +108,20 @@ const CustomersList: React.FC<CustomersListProps> = ({
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (customerToDelete) {
-      setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
-      showToast?.("Cliente eliminado", "success");
-      setIsDeleteModalOpen(false);
-      setCustomerToDelete(null);
+      try {
+        // Eliminar en Supabase
+        await customersService.delete(customerToDelete.id);
+        // Actualizar estado local
+        setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+        showToast?.("Cliente eliminado", "success");
+        setIsDeleteModalOpen(false);
+        setCustomerToDelete(null);
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        showToast?.("Error al eliminar el cliente", "error");
+      }
     }
   };
 
@@ -133,27 +142,32 @@ const CustomersList: React.FC<CustomersListProps> = ({
     setEditingCustomer(null);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!formData.name.trim()) {
       showToast?.("El nombre es obligatorio", "error");
       return;
     }
 
     if (editingCustomer) {
-      setCustomers(prev => prev.map(c =>
-        c.id === editingCustomer.id
-          ? {
-              ...c,
-              name: formData.name,
-              whatsapp: formData.whatsapp,
-              email: formData.email,
-              customerNumber: formData.customerNumber,
-              notes: formData.notes
-            }
-          : c
-      ));
-      showToast?.("Datos actualizados correctamente", "success");
-      closeEditModal();
+      try {
+        // Actualizar en Supabase
+        const updated = await customersService.update(editingCustomer.id, {
+          name: formData.name,
+          whatsapp: formData.whatsapp,
+          email: formData.email,
+          customerNumber: formData.customerNumber,
+          notes: formData.notes
+        });
+        // Actualizar estado local
+        setCustomers(prev => prev.map(c =>
+          c.id === editingCustomer.id ? updated : c
+        ));
+        showToast?.("Datos actualizados correctamente", "success");
+        closeEditModal();
+      } catch (error) {
+        console.error('Error saving customer:', error);
+        showToast?.("Error al guardar el cliente", "error");
+      }
     }
   };
 

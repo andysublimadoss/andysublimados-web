@@ -19,9 +19,14 @@ interface CostItem {
 
 interface PricingCalculatorProps {
   products?: Product[];
+  navigate?: (path: string, options?: any) => void;
 }
 
-const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) => {
+const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [], navigate }) => {
+  const [activeTab, setActiveTab] = useState<'cost' | 'quote'>(() => {
+    const saved = localStorage.getItem('andy_calc_tab');
+    return (saved as 'cost' | 'quote') || 'cost';
+  });
   const [items, setItems] = useState<CostItem[]>(() => {
     const saved = localStorage.getItem('andy_calc_items');
     return saved ? JSON.parse(saved) : [{ id: crypto.randomUUID(), description: '', cost: 0 }];
@@ -44,13 +49,14 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
 
   // Persistence
   useEffect(() => {
+    localStorage.setItem('andy_calc_tab', activeTab);
     localStorage.setItem('andy_calc_items', JSON.stringify(items));
     localStorage.setItem('andy_calc_qty', quantity.toString());
     localStorage.setItem('andy_calc_margin', margin.toString());
     localStorage.setItem('andy_calc_client', clientName);
     localStorage.setItem('andy_calc_project', projectName);
     localStorage.setItem('andy_calc_notes', notes);
-  }, [items, quantity, margin, clientName, projectName, notes]);
+  }, [activeTab, items, quantity, margin, clientName, projectName, notes]);
 
   const addItem = (description = '', cost = 0) => {
     setItems([...items, { id: crypto.randomUUID(), description, cost }]);
@@ -222,6 +228,32 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
     setIsModalOpen(false);
   };
 
+  const handleSaveAsQuote = () => {
+    if (!navigate) return;
+
+    if (!clientName.trim()) {
+      alert('Por favor ingresa el nombre del cliente antes de crear el presupuesto');
+      return;
+    }
+
+    // Preparar los datos del presupuesto
+    const quoteData = {
+      customerName: clientName,
+      customerPhone: '',
+      items: items.map(item => ({
+        description: item.description || 'Sin descripción',
+        quantity: quantity,
+        unitPrice: item.cost || 0,
+        total: (item.cost || 0) * quantity
+      })),
+      totalAmount: Math.round(totals.suggestedTotalPrice),
+      notes: notes || `Proyecto: ${projectName}\nMargen aplicado: ${margin}%`
+    };
+
+    // Navegar a quotes con los datos
+    navigate('/quotes', { state: { quoteData } });
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700 pb-20">
       {/* Filename Modal */}
@@ -277,7 +309,7 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={resetAll}
             className="p-4 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all border border-transparent hover:border-rose-100 active:scale-95"
             title="Reiniciar todo"
@@ -285,6 +317,50 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
             <RefreshCcw size={20} />
           </button>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-sm inline-flex gap-2 mx-auto">
+        <button
+          onClick={() => setActiveTab('cost')}
+          className={`relative px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-wide transition-all ${
+            activeTab === 'cost'
+              ? 'text-indigo-700'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          {activeTab === 'cost' && (
+            <motion.div
+              layoutId="activeTab"
+              className="absolute inset-0 bg-indigo-50 rounded-xl border border-indigo-100"
+              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center gap-2">
+            <Package size={16} />
+            Calcular Costo
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('quote')}
+          className={`relative px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-wide transition-all ${
+            activeTab === 'quote'
+              ? 'text-indigo-700'
+              : 'text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          {activeTab === 'quote' && (
+            <motion.div
+              layoutId="activeTab"
+              className="absolute inset-0 bg-indigo-50 rounded-xl border border-indigo-100"
+              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center gap-2">
+            <FileText size={16} />
+            Calcular Presupuesto
+          </span>
+        </button>
       </div>
 
       {/* Project Info Card */}
@@ -443,15 +519,15 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
           </div>
 
           {/* Config Section */}
-          <div className="bg-white p-8 md:p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className={`bg-white p-8 md:p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 ${activeTab === 'quote' ? 'grid grid-cols-1 md:grid-cols-2 gap-10' : 'flex justify-center'}`}>
             <div className="space-y-4">
               <div className="flex items-center gap-3 mb-2">
                 <ShoppingCart size={18} className="text-indigo-600" />
                 <h4 className="text-sm font-black text-slate-900 tracking-tight uppercase">Cantidad del Pedido</h4>
               </div>
               <div className="relative group">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="1"
                   value={quantity || ''}
                   onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
@@ -461,30 +537,32 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <Percent size={18} className="text-indigo-600" />
-                  <h4 className="text-sm font-black text-slate-900 tracking-tight uppercase">Margen de Ganancia</h4>
+            {activeTab === 'quote' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <Percent size={18} className="text-indigo-600" />
+                    <h4 className="text-sm font-black text-slate-900 tracking-tight uppercase">Margen de Ganancia</h4>
+                  </div>
+                  <span className="text-indigo-600 font-black text-sm">{margin}%</span>
                 </div>
-                <span className="text-indigo-600 font-black text-sm">{margin}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="5"
+                  value={margin}
+                  onChange={(e) => setMargen(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex justify-between text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                  <span>Costo</span>
+                  <span>Doble</span>
+                  <span>Triple</span>
+                  <span>500%</span>
+                </div>
               </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="500" 
-                step="5"
-                value={margin}
-                onChange={(e) => setMargin(Number(e.target.value))}
-                className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                <span>Costo</span>
-                <span>Doble</span>
-                <span>Triple</span>
-                <span>500%</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -496,53 +574,99 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [] }) 
               
               <div className="relative z-10 flex-1">
                 <div className="flex items-center gap-3 mb-10">
-                  <TrendingUp size={20} className="text-indigo-400" />
-                  <h4 className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em]">Resumen de Cotización</h4>
+                  {activeTab === 'cost' ? <Package size={20} className="text-indigo-400" /> : <TrendingUp size={20} className="text-indigo-400" />}
+                  <h4 className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em]">
+                    {activeTab === 'cost' ? 'Resumen de Costos' : 'Resumen de Cotización'}
+                  </h4>
                 </div>
 
-                <div className="space-y-10">
-                  {/* Total Order Price */}
-                  <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Total Final ({quantity} u.)</span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-indigo-400">$</span>
-                      <span className="text-7xl font-black tracking-tighter leading-none">
-                        {Math.round(totals.suggestedTotalPrice).toLocaleString()}
-                      </span>
+                {activeTab === 'cost' ? (
+                  // Modo: Calcular Costo
+                  <div className="space-y-10">
+                    {/* Total Cost */}
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Costo Total ({quantity} u.)</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-amber-400">$</span>
+                        <span className="text-7xl font-black tracking-tighter leading-none text-amber-400">
+                          {Math.round(totals.totalCost).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Unit Price */}
-                  <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
-                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2">Precio Sugerido por Unidad</span>
-                    <div className="text-3xl font-black text-white">
-                      ${Math.round(totals.suggestedUnitPrice).toLocaleString()}
+                    {/* Unit Cost */}
+                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
+                      <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block mb-2">Costo por Unidad</span>
+                      <div className="text-3xl font-black text-white">
+                        ${Math.round(totals.unitCost).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Costo Total</span>
-                      <p className="text-lg font-black text-slate-300">${Math.round(totals.totalCost).toLocaleString()}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Ganancia Neta</span>
-                      <p className="text-lg font-black text-emerald-400">+${Math.round(totals.totalProfit).toLocaleString()}</p>
+                    {/* Info */}
+                    <div className="p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20">
+                      <p className="text-xs text-amber-200 leading-relaxed">
+                        <strong className="text-amber-400">Modo Costos:</strong> Calcula únicamente cuánto te cuesta producir. Para calcular precios de venta, usa "Calcular Presupuesto".
+                      </p>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  // Modo: Calcular Presupuesto
+                  <div className="space-y-10">
+                    {/* Total Order Price */}
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Total Final ({quantity} u.)</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-indigo-400">$</span>
+                        <span className="text-7xl font-black tracking-tighter leading-none">
+                          {Math.round(totals.suggestedTotalPrice).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Unit Price */}
+                    <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2">Precio Sugerido por Unidad</span>
+                      <div className="text-3xl font-black text-white">
+                        ${Math.round(totals.suggestedUnitPrice).toLocaleString()}
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Costo Total</span>
+                        <p className="text-lg font-black text-slate-300">${Math.round(totals.totalCost).toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Ganancia Neta</span>
+                        <p className="text-lg font-black text-emerald-400">+${Math.round(totals.totalProfit).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="relative z-10 mt-12 pt-8 border-t border-white/10">
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest text-xs rounded-3xl transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-3 group/btn active:scale-95"
-                >
-                  <Save size={18} />
-                  Exportar Presupuesto PDF
-                  <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
-                </button>
+              <div className="relative z-10 mt-12 pt-8 border-t border-white/10 space-y-4">
+                {navigate && activeTab === 'quote' && (
+                  <button
+                    onClick={handleSaveAsQuote}
+                    className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest text-xs rounded-3xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-3 group/btn active:scale-95"
+                  >
+                    <FileText size={18} />
+                    Guardar en Presupuestos
+                    <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </button>
+                )}
+                {activeTab === 'quote' && (
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="w-full py-6 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest text-xs rounded-3xl transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-3 group/btn active:scale-95"
+                  >
+                    <Save size={18} />
+                    Exportar Presupuesto PDF
+                    <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </button>
+                )}
               </div>
             </div>
 
