@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Printer, Save, X, FileText, User, Calendar as CalendarIcon, Edit2, Search, Phone, ArrowRight, MessageSquare } from 'lucide-react';
 import { Quote, QuoteItem } from '@/types';
@@ -11,6 +12,9 @@ interface QuotesManagerProps {
 }
 
 const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, customers, showToast }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -20,6 +24,24 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Recibir datos de la calculadora
+  useEffect(() => {
+    const quoteData = (location.state as any)?.quoteData;
+    if (quoteData) {
+      setCustomerName(quoteData.customerName);
+      setCustomerPhone(quoteData.customerPhone || '');
+      setItems(quoteData.items.map((item: any) => ({
+        ...item,
+        id: Date.now().toString() + Math.random()
+      })));
+      setNotes(quoteData.notes || '');
+      setIsModalOpen(true);
+
+      // Limpiar el estado de navegación
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   const addItem = () => {
     const newItem: QuoteItem = {
