@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, navItems 
     graficos: '/charts',
     calculadora: '/calculator',
     deudores: '/debtors',
-    presupuestos: '/quotes'
+    presupuesto: '/quotes'
   };
 
   // Cerrar dropdown al hacer click fuera

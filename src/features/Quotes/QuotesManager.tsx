@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, Printer, Save, X, FileText, User, Calendar as CalendarIcon, Edit2, Search, Phone, ArrowRight, MessageSquare } from 'lucide-react';
 import { Quote, QuoteItem } from '@/types';
+import { quotesService } from '@/services/supabase';
 
 interface QuotesManagerProps {
   quotes: Quote[];
@@ -12,7 +13,6 @@ interface QuotesManagerProps {
 }
 
 const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, customers, showToast }) => {
-  const location = useLocation();
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,23 +25,28 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Recibir datos de la calculadora
+  // Recibir datos pendientes de la calculadora vía sessionStorage.
+  // No removemos en el effect: en React Strict Mode el effect corre dos veces
+  // y si removemos en el primer pase el segundo no encuentra nada y el modal
+  // no abre. Limpiamos en closeModal/handleSave en su lugar.
   useEffect(() => {
-    const quoteData = (location.state as any)?.quoteData;
-    if (quoteData) {
-      setCustomerName(quoteData.customerName);
+    const raw = sessionStorage.getItem('andy_pending_quote');
+    if (!raw) return;
+    try {
+      const quoteData = JSON.parse(raw);
+      setCustomerName(quoteData.customerName || '');
       setCustomerPhone(quoteData.customerPhone || '');
-      setItems(quoteData.items.map((item: any) => ({
+      setItems((quoteData.items || []).map((item: any) => ({
         ...item,
         id: Date.now().toString() + Math.random()
       })));
       setNotes(quoteData.notes || '');
       setIsModalOpen(true);
-
-      // Limpiar el estado de navegación
-      navigate(location.pathname, { replace: true, state: {} });
+    } catch (err) {
+      console.error('Error parsing pending quote:', err);
+      sessionStorage.removeItem('andy_pending_quote');
     }
-  }, [location.state]);
+  }, []);
 
   const addItem = () => {
     const newItem: QuoteItem = {
@@ -81,20 +86,27 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
   React.useEffect(() => {
     if (isModalOpen && editingId && customerName.trim() && items.length > 0) {
       const timer = setTimeout(() => {
-        setQuotes(prev => prev.map(q => q.id === editingId ? {
-          ...q,
+        const patch = {
           customerName,
           customerPhone,
           items,
           totalAmount,
-          notes
-        } : q));
+          notes,
+          date: new Date().toISOString()
+        };
+        quotesService.update(editingId, patch)
+          .then(updated => {
+            setQuotes(prev => prev.map(q => q.id === editingId ? updated : q));
+          })
+          .catch(err => {
+            console.error('Error autosaving quote:', err);
+          });
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [customerName, customerPhone, items, totalAmount, notes, editingId, isModalOpen, setQuotes]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmedName = customerName?.trim();
     if (!trimmedName) {
       showToast("El nombre del cliente es obligatorio", "error");
@@ -110,25 +122,25 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
       customerPhone,
       items,
       totalAmount: totalAmount || 0,
-      notes
+      notes,
+      date: new Date().toISOString()
     };
 
-    if (editingId) {
-      setQuotes(prev => prev.map(q => q.id === editingId ? {
-        ...q,
-        ...quoteData
-      } : q));
-      showToast("Presupuesto actualizado", "success");
-    } else {
-      const newQuote: Quote = {
-        id: Date.now().toString(),
-        ...quoteData,
-        date: new Date().toISOString()
-      };
-      setQuotes(prev => [newQuote, ...prev]);
-      showToast("Presupuesto guardado", "success");
+    try {
+      if (editingId) {
+        const updated = await quotesService.update(editingId, quoteData);
+        setQuotes(prev => prev.map(q => q.id === editingId ? updated : q));
+        showToast("Presupuesto actualizado", "success");
+      } else {
+        const newQuote = await quotesService.create(quoteData);
+        setQuotes(prev => [newQuote, ...prev]);
+        showToast("Presupuesto guardado", "success");
+      }
+      closeModal();
+    } catch (error) {
+      console.error('Error saving quote:', error);
+      showToast("Error al guardar el presupuesto", "error");
     }
-    closeModal();
   };
 
   const openEditModal = (quote: Quote) => {
@@ -148,6 +160,7 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
     setShowSuggestions(false);
     setItems([]);
     setNotes('');
+    sessionStorage.removeItem('andy_pending_quote');
   };
 
   const handlePrint = (quote?: Quote) => {
@@ -433,26 +446,13 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
                 >
                   <Edit2 size={18} />
                 </button>
-                <button 
+                <button
                   onClick={() => setDeletingId(quote.id)}
-                  className={`p-3 rounded-xl transition-all ${deletingId === quote.id ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-300 hover:bg-rose-500 hover:text-white'}`}
+                  className="p-3 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-all"
                   title="Eliminar"
                 >
-                  {deletingId === quote.id ? <X size={18} /> : <Trash2 size={18} />}
+                  <Trash2 size={18} />
                 </button>
-                {deletingId === quote.id && (
-                  <button 
-                    onClick={() => {
-                      setQuotes(quotes.filter(q => q.id !== quote.id));
-                      setDeletingId(null);
-                      showToast("Presupuesto eliminado", "success");
-                    }}
-                    className="p-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all animate-pulse flex items-center gap-2"
-                  >
-                    <Trash2 size={18} />
-                    <span className="text-[10px] font-black uppercase">Borrar</span>
-                  </button>
-                )}
               </div>
             </div>
             
@@ -490,31 +490,31 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
 
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[100] overflow-y-auto">
-            <motion.div 
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-start sm:items-center justify-center p-2 sm:p-4 z-[100] overflow-y-auto">
+            <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 50, scale: 0.95 }}
-              className="bg-white rounded-[4rem] w-full max-w-5xl my-8 overflow-hidden shadow-2xl flex flex-col min-h-[80vh]"
+              className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-3xl my-2 sm:my-8 overflow-hidden shadow-2xl flex flex-col max-h-[95vh]"
             >
-              <div className="p-10 md:p-16 flex-1 overflow-y-auto custom-scrollbar">
-                <div className="flex justify-between items-start mb-12">
-                  <div>
-                    <h3 className="text-4xl font-black text-slate-900 tracking-tight">{editingId ? 'Editar Presupuesto' : 'Nuevo Presupuesto'}</h3>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2">Detalle de servicios y productos</p>
+              <div className="p-5 sm:p-8 flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex justify-between items-start mb-6 sm:mb-8">
+                  <div className="min-w-0 pr-3">
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">{editingId ? 'Editar Presupuesto' : 'Nuevo Presupuesto'}</h3>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px] sm:text-[10px] mt-1">Detalle de servicios y productos</p>
                   </div>
-                  <button onClick={closeModal} className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-rose-500 transition-colors">
-                    <X size={24} />
+                  <button onClick={closeModal} className="p-2 sm:p-2.5 bg-slate-50 rounded-xl text-slate-400 hover:text-rose-500 transition-colors shrink-0">
+                    <X size={18} />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                  <div className="space-y-3 relative">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Cliente</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 mb-6 sm:mb-8">
+                  <div className="space-y-2 relative sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Cliente</label>
                     <div className="relative">
-                      <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                      <input 
-                        type="text" 
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <input
+                        type="text"
                         value={customerName}
                         onChange={e => {
                           setCustomerName(e.target.value);
@@ -522,7 +522,7 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
                         }}
                         onFocus={() => customerName.length > 0 && setShowSuggestions(true)}
                         placeholder="Nombre del cliente"
-                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-3xl outline-none font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl outline-none font-bold text-sm text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all"
                       />
                     </div>
                     
@@ -563,151 +563,219 @@ const QuotesManager: React.FC<QuotesManagerProps> = ({ quotes, setQuotes, custom
                       )}
                     </AnimatePresence>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Teléfono</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Teléfono</label>
                     <div className="relative">
-                      <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                      <input 
-                        type="text" 
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <input
+                        type="text"
                         value={customerPhone}
                         onChange={e => setCustomerPhone(e.target.value)}
                         placeholder="Teléfono del cliente"
-                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-3xl outline-none font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl outline-none font-bold text-sm text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all"
                       />
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Fecha</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Fecha</label>
                     <div className="relative">
-                      <CalendarIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                      <input 
-                        type="text" 
+                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                      <input
+                        type="text"
                         value={editingId ? new Date(quotes.find(q => q.id === editingId)?.date || '').toLocaleDateString() : new Date().toLocaleDateString()}
                         disabled
-                        className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-3xl outline-none font-bold text-slate-400 cursor-not-allowed"
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl outline-none font-bold text-sm text-slate-400 cursor-not-allowed"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 rounded-[3rem] p-8 mb-12">
-                  <div className="flex items-center justify-between mb-8 px-4">
-                    <h4 className="text-lg font-black text-slate-900 tracking-tight">Ítems del Presupuesto</h4>
-                    <button 
+                <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-4 sm:p-5 mb-6 sm:mb-8">
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">Ítems del Presupuesto</h4>
+                    <button
                       onClick={addItem}
-                      className="flex items-center gap-2 bg-white text-indigo-600 px-5 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md transition-all"
+                      className="flex items-center gap-1.5 bg-white text-indigo-600 px-3 py-2 rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md transition-all"
                     >
-                      <Plus size={16} />
-                      Agregar Ítem
+                      <Plus size={14} />
+                      Agregar
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    {items.map((item, index) => (
-                      <div key={item.id} className="grid grid-cols-12 gap-4 items-center bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-                        <div className="col-span-2">
-                          <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-2">Cant.</label>
-                          <input 
-                            type="number" 
-                            value={item.quantity}
-                            onChange={e => updateItem(item.id, 'quantity', e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl outline-none font-bold text-center"
-                          />
-                        </div>
-                        <div className="col-span-5">
-                          <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-2">Descripción</label>
-                          <input 
-                            type="text" 
-                            value={item.description}
-                            onChange={e => updateItem(item.id, 'description', e.target.value)}
-                            placeholder="Producto o servicio"
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl outline-none font-bold"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-2">P. Unit</label>
-                          <input 
-                            type="number" 
-                            value={item.unitPrice}
-                            onChange={e => updateItem(item.id, 'unitPrice', e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl outline-none font-bold"
-                          />
-                        </div>
-                        <div className="col-span-2 text-right px-4">
-                          <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block text-right">Total</label>
-                          <span className="font-black text-slate-900 block py-3">${item.total.toLocaleString()}</span>
-                        </div>
-                        <div className="col-span-1 flex justify-center pt-5">
-                          <button 
-                            onClick={() => removeItem(item.id)}
-                            className="p-2 text-rose-300 hover:text-rose-500 transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                  <div className="space-y-3">
+                    {items.map((item) => (
+                      <div key={item.id} className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="grid grid-cols-12 gap-2 sm:gap-3 items-end">
+                          <div className="col-span-12 sm:col-span-6">
+                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-1">Descripción</label>
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={e => updateItem(item.id, 'description', e.target.value)}
+                              placeholder="Producto o servicio"
+                              className="w-full px-3 py-2.5 bg-slate-50 border-none rounded-xl outline-none font-bold text-sm"
+                            />
+                          </div>
+                          <div className="col-span-3 sm:col-span-2">
+                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-1">Cant.</label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={e => updateItem(item.id, 'quantity', e.target.value)}
+                              className="w-full px-2 py-2.5 bg-slate-50 border-none rounded-xl outline-none font-bold text-sm text-center"
+                            />
+                          </div>
+                          <div className="col-span-4 sm:col-span-2">
+                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block ml-1">P. Unit</label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={e => updateItem(item.id, 'unitPrice', e.target.value)}
+                              className="w-full px-2 py-2.5 bg-slate-50 border-none rounded-xl outline-none font-bold text-sm"
+                            />
+                          </div>
+                          <div className="col-span-4 sm:col-span-2 text-right">
+                            <label className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 block text-right">Total</label>
+                            <span className="font-black text-slate-900 block py-2.5 text-sm">${item.total.toLocaleString()}</span>
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            <button
+                              onClick={() => removeItem(item.id)}
+                              className="p-2 text-rose-300 hover:text-rose-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
                     {items.length === 0 && (
-                      <div className="text-center py-10 text-slate-400 font-medium italic">No hay ítems agregados</div>
+                      <div className="text-center py-6 text-slate-400 font-medium italic text-sm">No hay ítems agregados</div>
                     )}
                   </div>
 
-                  <div className="mt-8 pt-8 border-t border-slate-200 flex justify-end px-8">
-                    <div className="flex items-center gap-8">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Presupuesto</span>
-                      <span className="text-3xl font-black text-indigo-600 tracking-tighter">${totalAmount.toLocaleString()}</span>
-                    </div>
+                  <div className="mt-5 pt-4 border-t border-slate-200 flex justify-end items-center gap-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total</span>
+                    <span className="text-xl sm:text-2xl font-black text-indigo-600 tracking-tighter">${totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Notas Adicionales</label>
-                  <textarea 
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Notas Adicionales</label>
+                  <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
                     placeholder="Ej: Validez del presupuesto, tiempo de entrega, etc."
-                    className="w-full px-8 py-6 bg-slate-50 border-none rounded-[2rem] outline-none font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all min-h-[120px]"
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl outline-none font-bold text-sm text-slate-700 focus:ring-4 focus:ring-indigo-50 transition-all min-h-[80px]"
                   />
                 </div>
               </div>
 
-              <div className="p-10 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row gap-4 justify-end relative z-[110]">
-                <button 
+              <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 sm:justify-end relative z-[110]">
+                <button
                   type="button"
                   onClick={() => handleWhatsAppShare()}
-                  className="flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-[2rem] font-black uppercase tracking-widest text-[11px] hover:bg-emerald-600 shadow-xl shadow-emerald-200 transition-all active:scale-95"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-600 shadow-md shadow-emerald-200 transition-all active:scale-95"
                 >
-                  <MessageSquare size={20} />
-                  Enviar por WhatsApp
+                  <MessageSquare size={16} />
+                  WhatsApp
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => handlePrint()}
-                  className="flex items-center justify-center gap-3 px-10 py-5 bg-white text-slate-600 rounded-[2rem] font-black uppercase tracking-widest text-[11px] hover:bg-slate-100 transition-all shadow-sm active:scale-95"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 transition-all shadow-sm active:scale-95"
                 >
-                  <Printer size={20} />
-                  Vista Previa / Imprimir
+                  <Printer size={16} />
+                  Imprimir
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={closeModal}
-                  className="flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-[2rem] font-black uppercase tracking-widest text-[11px] hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all active:scale-95"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-rose-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 shadow-md shadow-rose-200 transition-all active:scale-95"
                 >
-                  <X size={20} />
+                  <X size={16} />
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={handleSave}
-                  className="flex items-center justify-center gap-3 px-12 py-5 bg-indigo-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-[11px] hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all active:scale-95"
                 >
-                  <Save size={20} />
-                  {editingId ? 'Actualizar Presupuesto' : 'Guardar Presupuesto'}
+                  <Save size={16} />
+                  {editingId ? 'Actualizar' : 'Guardar'}
                 </button>
               </div>
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Confirm Delete Modal */}
+      <AnimatePresence>
+        {deletingId && (() => {
+          const quoteToDelete = quotes.find(q => q.id === deletingId);
+          if (!quoteToDelete) return null;
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[120]">
+              <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 30, scale: 0.95 }}
+                className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+              >
+                <div className="p-6 sm:p-8">
+                  <div className="flex items-start gap-4 mb-5">
+                    <div className="p-3 bg-rose-50 text-rose-500 rounded-2xl shrink-0">
+                      <Trash2 size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Eliminar presupuesto</h3>
+                      <p className="text-slate-500 text-sm mt-1">Esta acción no se puede deshacer.</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 mb-6">
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</div>
+                    <div className="font-black text-slate-900 truncate">{quoteToDelete.customerName}</div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                      <span className="font-black text-indigo-600">${quoteToDelete.totalAmount.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setDeletingId(null)}
+                      className="flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all active:scale-95"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const id = deletingId;
+                        try {
+                          await quotesService.delete(id);
+                          setQuotes(prev => prev.filter(q => q.id !== id));
+                          setDeletingId(null);
+                          showToast("Presupuesto eliminado", "success");
+                        } catch (error) {
+                          console.error('Error deleting quote:', error);
+                          showToast("Error al eliminar el presupuesto", "error");
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 px-5 py-3 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-700 shadow-md shadow-rose-200 transition-all active:scale-95"
+                    >
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

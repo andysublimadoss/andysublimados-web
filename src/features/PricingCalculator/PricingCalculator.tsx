@@ -250,8 +250,10 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [], na
       notes: notes || `Proyecto: ${projectName}\nMargen aplicado: ${margin}%`
     };
 
-    // Navegar a quotes con los datos
-    navigate('/quotes', { state: { quoteData } });
+    // Pasar los datos vía sessionStorage para evitar problemas con Strict Mode
+    // (location.state se pierde si el effect que lo consume monta dos veces).
+    sessionStorage.setItem('andy_pending_quote', JSON.stringify(quoteData));
+    navigate('/quotes');
   };
 
   return (
@@ -552,7 +554,7 @@ const PricingCalculator: React.FC<PricingCalculatorProps> = ({ products = [], na
                   max="500"
                   step="5"
                   value={margin}
-                  onChange={(e) => setMargen(Number(e.target.value))}
+                  onChange={(e) => setMargin(Number(e.target.value))}
                   className="w-full h-2 bg-slate-100 rounded-full appearance-none cursor-pointer accent-indigo-600"
                 />
                 <div className="flex justify-between text-[8px] font-black text-slate-300 uppercase tracking-widest">

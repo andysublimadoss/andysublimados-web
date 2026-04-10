@@ -1,11 +1,13 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   TrendingUp, TrendingDown, Plus, Trash2, Wallet, Filter, Calendar,
-  CreditCard, DollarSign, ArrowUpRight, ArrowDownRight, X, ChevronDown, MoreHorizontal,
+  CreditCard, DollarSign, ArrowUpRight, ArrowDownRight, X, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal,
   Calculator, Banknote
 } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 10;
 import { CashMovement, MovementType, PaymentMethod } from '@/types';
 import { useCashFlow } from '@/hooks';
 import { CASH_CATEGORIES, CATEGORY_ICONS, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '@/utils';
@@ -31,6 +33,7 @@ const CashFlow: React.FC<CashFlowProps> = ({ movements, setMovements, showToast 
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Cash Reconciliation State
   const [counts, setCounts] = useState<Record<number, number>>(() => {
@@ -82,6 +85,20 @@ const CashFlow: React.FC<CashFlowProps> = ({ movements, setMovements, showToast 
   const totalIncome = filteredMovements.filter(m => m.type === MovementType.INGRESO).reduce((sum, m) => sum + m.amount, 0);
   const totalExpense = filteredMovements.filter(m => m.type === MovementType.EGRESO).reduce((sum, m) => sum + m.amount, 0);
   const balance = totalIncome - totalExpense;
+
+  const totalPages = Math.max(1, Math.ceil(filteredMovements.length / ITEMS_PER_PAGE));
+  const paginatedMovements = filteredMovements.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterCategory, startDate, endDate]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-in fade-in duration-700">
@@ -362,7 +379,7 @@ const CashFlow: React.FC<CashFlowProps> = ({ movements, setMovements, showToast 
             </thead>
             <tbody className="divide-y divide-slate-50">
               <AnimatePresence mode="popLayout">
-                {filteredMovements.map((m, idx) => (
+                {paginatedMovements.map((m, idx) => (
                   <motion.tr 
                     layout
                     initial={{ opacity: 0, x: -20 }}
@@ -457,6 +474,62 @@ const CashFlow: React.FC<CashFlowProps> = ({ movements, setMovements, showToast 
             </tbody>
           </table>
         </div>
+
+        {filteredMovements.length > 0 && (
+          <div className="px-4 md:px-10 py-4 md:py-6 border-t border-slate-50 bg-slate-50/50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Mostrando{' '}
+              <span className="text-slate-700">
+                {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                {'–'}
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredMovements.length)}
+              </span>{' '}
+              de <span className="text-slate-700">{filteredMovements.length}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 md:p-2.5 rounded-xl md:rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-slate-700 hover:border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                aria-label="Página anterior"
+              >
+                <ChevronLeft size={14} />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .map((p, i, arr) => (
+                    <React.Fragment key={p}>
+                      {i > 0 && arr[i - 1] !== p - 1 && (
+                        <span className="px-1 text-[10px] font-black text-slate-300">…</span>
+                      )}
+                      <button
+                        onClick={() => setCurrentPage(p)}
+                        className={`min-w-[28px] md:min-w-[34px] h-7 md:h-9 px-2 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${
+                          currentPage === p
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                            : 'bg-white border border-slate-100 text-slate-400 hover:text-slate-700 hover:border-slate-200 shadow-sm'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 md:p-2.5 rounded-xl md:rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-slate-700 hover:border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                aria-label="Página siguiente"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       </div>
 
