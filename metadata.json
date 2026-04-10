@@ -1,0 +1,7 @@
+{
+  "name": "Andy Sublimados",
+  "description": "Sistema integral de gestión para emprendimientos de sublimación y diseño, incluyendo inventario, agenda de pedidos, caja diaria y reportes financieros.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

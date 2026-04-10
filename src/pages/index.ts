@@ -1,0 +1,10 @@
+export { DashboardPage } from './Dashboard';
+export { OrdersPage } from './Orders';
+export { InventoryPage } from './Inventory';
+export { CustomersPage } from './Customers';
+export { CashFlowPage } from './CashFlow';
+export { SuppliersPage } from './Suppliers';
+export { ChartsPage } from './Charts';
+export { CalculatorPage } from './Calculator';
+export { DebtorsPage } from './Debtors';
+export { QuotesPage } from './Quotes';
